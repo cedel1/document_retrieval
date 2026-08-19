@@ -132,3 +132,12 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Output files from dezoomify script
+output.jpg
+output.png
+dezoomified*.jpg
+dezoomified*.png
+output/
+debug_page.html
+debug_dom.html
