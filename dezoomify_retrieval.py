@@ -6,17 +6,19 @@ This script takes a digital library webpage URL, extracts the document and page 
 and retrieves all pages of the document using the dezoomify-rs command-line tool.
 """
 
-import urllib.parse
+import argparse
+import os
+import random
 import re
 import subprocess
 import sys
 import time
-import random
+from typing import List, Optional, Tuple
+import urllib.parse
+
+from bs4 import BeautifulSoup
 import requests
 import urllib3
-import os
-from typing import Optional, List, Tuple
-from bs4 import BeautifulSoup
 
 # Try to import selenium, but make it optional
 try:
@@ -54,12 +56,33 @@ def extract_uuids_from_url(url: str) -> Tuple[Optional[str], Optional[str]]:
     # Extract page UUID from the page parameter
     page_uuid = None
     if 'page' in params:
-        page_value = params['page'][0]
-        page_match = re.search(r'uuid:([a-f0-9-]+)', page_value)
-        if page_match:
-            page_uuid = page_match.group(1)
+        page_match = re.search(r'uuid:([a-f0-9-]+)', params['page'][0])
+        page_uuid = page_match.group(1) if page_match else None
     
     return document_uuid, page_uuid
+
+
+def _get_page_uuids_from_children_data(children: dict, page_uuids: List[str]) -> List[str]:
+    """
+    Get and possibly append page UUID from data dictionary.
+
+    Args:
+        children: The children dictionary
+        page_uuids: The list of page UUIDs to append to
+
+    Returns:
+        The updated list of page UUIDs
+    """
+    for child in children:
+        if 'pid' in child:
+            pid = children['pid']
+            uuid_match = re.search(r'uuid:([a-f0-9-]+)', pid)
+            if uuid_match:
+                page_uuids.append(uuid_match.group(1))
+            elif re.match(r'^[a-f0-9-]+$', pid):
+                page_uuids.append(pid)
+            
+    return page_uuids
 
 
 def get_document_pages(document_uuid: str) -> List[str]:
@@ -91,28 +114,14 @@ def get_document_pages(document_uuid: str) -> List[str]:
             # Handle different response formats
             if isinstance(data, list):
                 # Direct list of children
-                for child in data:
-                    if 'pid' in child:
-                        pid = child['pid']
-                        uuid_match = re.search(r'uuid:([a-f0-9-]+)', pid)
-                        if uuid_match:
-                            page_uuids.append(uuid_match.group(1))
-                        elif re.match(r'^[a-f0-9-]+$', pid):
-                            page_uuids.append(pid)
+                page_uuids = _get_page_uuids_from_children_data(data, page_uuids)
             elif isinstance(data, dict):
                 # Nested structure
                 if 'children' in data:
                     children = data['children']
                     if isinstance(children, dict) and 'own' in children:
                         children = children['own']
-                    for child in children:
-                        if 'pid' in child:
-                            pid = child['pid']
-                            uuid_match = re.search(r'uuid:([a-f0-9-]+)', pid)
-                            if uuid_match:
-                                page_uuids.append(uuid_match.group(1))
-                            elif re.match(r'^[a-f0-9-]+$', pid):
-                                page_uuids.append(pid)
+                    page_uuids = _get_page_uuids_from_children_data(children, page_uuids)
             
             if page_uuids:
                 print(f"Found {len(page_uuids)} pages in document via API")
@@ -340,7 +349,7 @@ def check_dezoomify_rs(dezoomify_path: str = "dezoomify-rs") -> bool:
         return False
 
 
-def random_delay(min_seconds: float = 1.0, max_seconds: float = 15.0):
+def random_delay(min_seconds: float = 1.0, max_seconds: float = 10.0):
     """
     Sleep for a random amount of time between min and max seconds.
     
@@ -354,7 +363,8 @@ def random_delay(min_seconds: float = 1.0, max_seconds: float = 15.0):
 
 
 def retrieve_dezoomified_image(uuid: str, output_base: str = "output", 
-                              add_delay: bool = True, dezoomify_path: str = "dezoomify-rs") -> str:
+                              add_delay: bool = True, dezoomify_path: str = "dezoomify-rs",
+                              dezoomify_args: List[str] = list()) -> str:
     """
     Retrieve the dezoomified image using dezoomify-rs.
     
@@ -383,17 +393,19 @@ def retrieve_dezoomified_image(uuid: str, output_base: str = "output",
     try:
         # Run dezoomify-rs without specifying output format
         # dezoomify-rs will determine the appropriate format
+        print(f"Dezoomify-args: {dezoomify_args}")
         result = subprocess.run(
-            [dezoomify_path, image_properties_url, output_base],
+            [dezoomify_path, *dezoomify_args, image_properties_url, output_base],
             capture_output=True,
             text=True,
-            timeout=600  # 10 minute timeout for large images
+            check=True,
+            timeout=60  # 1 minute timeout for large images
         )
         
         if result.returncode == 0:
             # Determine what file was actually created
             # dezoomify-rs might add .jpg or .png extension
-            possible_extensions = ['.jpg', '.jpeg', '.png', '.tif', '.tiff']
+            possible_extensions = ['.jpg', '.jpeg', '.png', '.tif', '.tiff', '.pnm']
             actual_output = ""
             
             for ext in possible_extensions:
@@ -421,16 +433,18 @@ def retrieve_dezoomified_image(uuid: str, output_base: str = "output",
             print(f"Error running dezoomify-rs: {result.stderr}")
             return ""
             
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as e:
         print("Error: dezoomify-rs timed out")
+        print(e.output)
         return ""
     except subprocess.SubprocessError as e:
         print(f"Error running dezoomify-rs: {e}")
+        print(e.output)
         return ""
 
 
 def download_specific_pages(page_uuids: List[str], output_dir: str = "output", 
-                           dezoomify_path: str = "dezoomify-rs") -> bool:
+                           dezoomify_path: str = "dezoomify-rs", dezoomify_args: List[str] = list()) -> bool:
     """
     Download specific pages given their UUIDs.
     
@@ -458,7 +472,7 @@ def download_specific_pages(page_uuids: List[str], output_dir: str = "output",
         
         # Don't add delay after the last download
         add_delay = (i < len(page_uuids))
-        actual_output = retrieve_dezoomified_image(page_uuid, output_base, add_delay, dezoomify_path)
+        actual_output = retrieve_dezoomified_image(page_uuid, output_base, add_delay, dezoomify_path, dezoomify_args)
         
         if actual_output:
             successful_downloads += 1
@@ -470,7 +484,7 @@ def download_specific_pages(page_uuids: List[str], output_dir: str = "output",
 
 
 def retrieve_document(document_uuid: str, output_dir: str = "output", 
-                    dezoomify_path: str = "dezoomify-rs") -> bool:
+                    dezoomify_path: str = "dezoomify-rs", dezoomify_args: List[str] = list()) -> bool:
     """
     Retrieve all pages of a document.
     
@@ -489,25 +503,26 @@ def retrieve_document(document_uuid: str, output_dir: str = "output",
         return False
     
     # Use the common download function
-    return download_specific_pages(page_uuids, output_dir, dezoomify_path)
+    return download_specific_pages(page_uuids, output_dir, dezoomify_path, dezoomify_args)
 
 
 def main():
     """Main function to process a URL and retrieve the dezoomified image."""
-    import argparse
-    
     parser = argparse.ArgumentParser(description='Retrieve dezoomified images from digital library documents')
     parser.add_argument('url', help='URL of the document page (required)')
     parser.add_argument('--pages', nargs='+', help='List of page UUIDs to download (overrides automatic discovery)')
     parser.add_argument('--output', default='output', help='Output directory for downloaded images')
     parser.add_argument('--dezoomify-path', default='dezoomify-rs', 
                        help='Path to dezoomify-rs executable (default: dezoomify-rs)')
+    parser.add_argument('--dezoomify-args', nargs='?', action='append',
+                       help='Additional arguments to pass to dezoomify-rs')
     
     args = parser.parse_args()
     
     # URL is now required
     source_url = args.url
     dezoomify_path = args.dezoomify_path
+    dezoomify_args = args.dezoomify_args if args.dezoomify_args else []
     
     # Extract both UUIDs
     document_uuid, page_uuid = extract_uuids_from_url(source_url)
@@ -525,10 +540,11 @@ def main():
     if args.pages:
         print(f"Using manually specified {len(args.pages)} pages")
         page_uuids = args.pages
-        success = download_specific_pages(page_uuids, args.output, dezoomify_path)
+        print(f"dezoomify-args in main {dezoomify_args}")
+        success = download_specific_pages(page_uuids, args.output, dezoomify_path, dezoomify_args)
     else:
         # Try automatic discovery
-        success = retrieve_document(document_uuid, args.output, dezoomify_path)
+        success = retrieve_document(document_uuid, args.output, dezoomify_path, dezoomify_args)
     
     if success:
         print("Document retrieval completed successfully")
