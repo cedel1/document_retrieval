@@ -141,3 +141,5 @@ dezoomified*.png
 output/
 debug_page.html
 debug_dom.html
+documents.txt_used
+documents.txt_used_checks
