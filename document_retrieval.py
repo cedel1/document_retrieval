@@ -7,11 +7,13 @@ all pages for each document using the dezoomify_retrieval.py script.
 """
 
 import argparse
-from ntpath import exists
-import os
 import subprocess
 import sys
 from typing import List
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def read_urls_from_file(file_path: str) -> List[str]:
@@ -32,10 +34,10 @@ def read_urls_from_file(file_path: str) -> List[str]:
                 if line and not line.startswith("#"):  # Skip empty lines and comments
                     urls.append(line)
     except FileNotFoundError:
-        print(f"Error: File not found: {file_path}")
+        logger.error("Error: File not found: %s", file_path)
         sys.exit(1)
     except Exception as e:
-        print(f"Error reading file: {e}")
+        logger.error("Error reading file: %s", e)
         sys.exit(1)
 
     return urls
@@ -55,15 +57,16 @@ def retrieve_document(url: str, additional_args: List[str], document_number: int
         True if successful, False otherwise
     """
     # Create document-specific output directory
-    document_output_dir = os.path.join(base_output_dir, f"document_{document_number:03d}")
-    os.makedirs(document_output_dir, exist_ok=False)
+    document_output_dir = Path(base_output_dir) / f"document_{document_number:03d}"
+    # keep the original behavior of failing if the directory already exists
+    document_output_dir.mkdir(parents=True, exist_ok=False)
 
     # Update the output argument in additional_args
     output_args = []
     i = 0
     while i < len(additional_args):
         arg = additional_args[i]
-        print(f"arg: {arg}")
+        logger.debug("arg: %s", arg)
         if arg == "--output" and i + 1 < len(additional_args):
             # Skip the next argument as we'll override it
             i += 2
@@ -75,18 +78,22 @@ def retrieve_document(url: str, additional_args: List[str], document_number: int
             i += 1
 
     # Add our custom output directory
-    output_args.extend(["--output", document_output_dir])
+    output_args.extend(["--output", str(document_output_dir)])
 
     command = ["python", "dezoomify_retrieval.py", url] + output_args
 
     try:
-        print(f"\nProcessing document {document_number}: {url}")
-        print(f"Output directory: {document_output_dir}")
-        print(command)
-        result = subprocess.run(command, check=False)
+        print("\nProcessing document %d: %s", document_number, url)
+        logger.info("Output directory: %s", document_output_dir)
+        logger.debug("Running command: %s", command)
+        result = subprocess.run(command, check=False, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error("dezoomify_retrieval failed for %s (returncode=%s)", url, result.returncode)
+            logger.error("stdout: %s", result.stdout)
+            logger.error("stderr: %s", result.stderr)
         return result.returncode == 0
     except Exception as e:
-        print(f"Error processing document {url}: {e}")
+        logger.error("Error processing document %s: %s", url, e)
         return False
 
 
@@ -94,6 +101,7 @@ def main():
     """Main function to process multiple documents."""
     parser = argparse.ArgumentParser(description="Retrieve multiple documents from a file")
     parser.add_argument("--documents_file", help="Path to text file containing document URLs (one per line)")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose (debug) logging")
 
     # Parse known arguments to pass through to dezoomify_retrieval.py
     parser.add_argument("--pages", nargs="+", help="List of page UUIDs to download (overrides automatic discovery)")
@@ -107,6 +115,10 @@ def main():
 
     args = parser.parse_args()
 
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.DEBUG if args.verbose else logging.INFO
+    )
+
     # Read URLs from file
     urls = read_urls_from_file(args.documents_file)
 
@@ -114,7 +126,7 @@ def main():
         print("No URLs found in file")
         sys.exit(1)
 
-    print(f"Found {len(urls)} documents to process")
+    logger.info("Found %d documents to process", len(urls))
 
     # Build additional arguments to pass through
     additional_args = []
@@ -124,30 +136,28 @@ def main():
         additional_args.extend(["--dezoomify-path", args.dezoomify_path])
     if args.dezoomify_args:
         additional_args.extend([f"--dezoomify-args={dezoomify_arg}" for dezoomify_arg in args.dezoomify_args])
-        # additional_args.extend(args.dezoomify_args)
-
-    print(additional_args)
+    logger.debug("Additional args to pass: %s", additional_args)
     # Create base output directory
-    os.makedirs(args.output, exist_ok=True)
+    Path(args.output).mkdir(parents=True, exist_ok=True)
 
     # Process each document
     successful = 0
     failed = 0
 
     for i, url in enumerate(urls, 1):
-        print(f"\n{'='*60}")
-        print(f"Document {i}/{len(urls)}")
-        print(f"{'='*60}")
+        logger.info("\n%s", "=" * 60)
+        logger.info("Document %d/%d", i, len(urls))
+        logger.info("%s", "=" * 60)
 
-        print(f"retrieve_document({url}, {additional_args}, {i}, {args.output})")
+        logger.debug("retrieve_document(%s, %s, %d, %s)", url, additional_args, i, args.output)
         if retrieve_document(url, additional_args, i, args.output):
             successful += 1
         else:
             failed += 1
 
-    print(f"\n{'='*60}")
-    print(f"Processing complete: {successful} successful, {failed} failed")
-    print(f"{'='*60}")
+    logger.info("\n%s", "=" * 60)
+    logger.info("Processing complete: %d successful, %d failed", successful, failed)
+    logger.info("%s", "=" * 60)
 
     if failed > 0:
         sys.exit(1)

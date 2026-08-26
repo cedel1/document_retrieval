@@ -7,17 +7,21 @@ and retrieves all pages of the document using the dezoomify-rs command-line tool
 """
 
 import argparse
-import os
+import logging
 import random
 import re
 import subprocess
 import time
 from typing import List, Optional, Tuple
 import urllib.parse
+from datetime import datetime
 
+from pathlib import Path
 from bs4 import BeautifulSoup
 import requests
 import urllib3
+
+logger = logging.getLogger(__name__)
 
 # Try to import selenium, but make it optional
 try:
@@ -30,7 +34,7 @@ try:
     SELENIUM_AVAILABLE = True
 except ImportError:
     SELENIUM_AVAILABLE = False
-    print("Selenium not available, JavaScript rendering will be limited")
+    logger.debug("Selenium not available, JavaScript rendering will be limited")
 
 # Suppress SSL warnings for problematic certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -75,7 +79,7 @@ def _get_page_uuids_from_children_data(children: dict, page_uuids: List[str]) ->
     """
     for child in children:
         if "pid" in child:
-            pid = children["pid"]
+            pid = child["pid"]
             uuid_match = re.search(r"uuid:([a-f0-9-]+)", pid)
             if uuid_match:
                 page_uuids.append(uuid_match.group(1))
@@ -104,7 +108,7 @@ def get_document_pages(document_uuid: str) -> List[str]:
 
     for api_url in api_endpoints:
         try:
-            print(f"Trying API endpoint: {api_url}")
+            logger.debug("Trying API endpoint: %s", api_url)
             # Fetch the document's children via API
             response = requests.get(api_url, timeout=30, verify=False)
             response.raise_for_status()
@@ -125,19 +129,39 @@ def get_document_pages(document_uuid: str) -> List[str]:
                     page_uuids = _get_page_uuids_from_children_data(children, page_uuids)
 
             if page_uuids:
-                print(f"Found {len(page_uuids)} pages in document via API")
+                logger.info("Found %d pages in document via API", len(page_uuids))
                 return page_uuids
 
         except requests.exceptions.RequestException as e:
-            print(f"Error with endpoint {api_url}: {e}")
+            logger.warning("Error with endpoint %s: %s", api_url, e)
             continue
         except Exception as e:
-            print(f"Error parsing response from {api_url}: {e}")
+            logger.warning("Error parsing response from %s: %s", api_url, e)
             continue
 
-    print("All API endpoints failed, trying DOM parsing method...")
+    logger.debug("All API endpoints failed, trying DOM parsing method...")
     # Fallback: Try to extract pages from DOM
     return get_document_pages_from_dom(document_uuid)
+
+
+def _get_uuid_match(page_uuids, div_id) -> List[str]:
+    """
+    Check if the div id matches the pattern 'page-id-uuid:{uuid}' and extract the UUID.
+
+    Args:
+        page_uuids: List of page UUIDs to append to
+        div_id: The div id string to check
+
+    Returns:
+        Updated list of page UUIDs
+    """
+    uuid_match = re.search(r"page-id-uuid:([a-f0-9-]+)", div_id)
+    if uuid_match:
+        page_uuid = uuid_match.group(1)
+        if page_uuid not in page_uuids:  # Avoid duplicates
+            page_uuids.append(page_uuid)
+            logger.debug("Found page UUID: %s", page_uuid)
+    return page_uuids
 
 
 def _extract_uuids_from_divs_with_id_pattern(soup, pattern: str) -> List[str]:
@@ -157,11 +181,7 @@ def _extract_uuids_from_divs_with_id_pattern(soup, pattern: str) -> List[str]:
     for div in all_divs:
         div_id = div["id"]
         if pattern in div_id:
-            uuid_match = re.search(r"page-id-uuid:([a-f0-9-]+)", div_id)
-            if uuid_match:
-                page_uuid = uuid_match.group(1)
-                if page_uuid not in page_uuids:
-                    page_uuids.append(page_uuid)
+            page_uuids = _get_uuid_match(page_uuids, div_id)
 
     return page_uuids
 
@@ -180,7 +200,7 @@ def _extract_uuids_from_navigation_items(soup) -> List[str]:
 
     # Find all elements with class 'app-navigation-item'
     navigation_items = soup.find_all(class_="app-navigation-item")
-    print(f"Found {len(navigation_items)} elements with class 'app-navigation-item'")
+    logger.debug("Found %d elements with class 'app-navigation-item'", len(navigation_items))
 
     for item in navigation_items:
         # Look for div elements with id in format 'page-id-uuid:{uuid}'
@@ -188,12 +208,7 @@ def _extract_uuids_from_navigation_items(soup) -> List[str]:
         for div in divs:
             div_id = div["id"]
             # Check if the id matches the pattern 'page-id-uuid:{uuid}'
-            uuid_match = re.search(r"page-id-uuid:([a-f0-9-]+)", div_id)
-            if uuid_match:
-                page_uuid = uuid_match.group(1)
-                if page_uuid not in page_uuids:  # Avoid duplicates
-                    page_uuids.append(page_uuid)
-                    print(f"Found page UUID: {page_uuid}")
+            page_uuids = _get_uuid_match(page_uuids, div_id)
 
     return page_uuids
 
@@ -216,10 +231,10 @@ def _try_basic_dom_request(document_url: str) -> List[str]:
         page_uuids = _extract_uuids_from_divs_with_id_pattern(soup, "page-id-uuid:")
 
         if page_uuids:
-            print(f"Found {len(page_uuids)} pages via basic request (static content)")
+            logger.info("Found %d pages via basic request (static content)", len(page_uuids))
             return page_uuids
     except Exception as e:
-        print(f"Basic request failed: {e}")
+        logger.debug("Basic request failed: %s", e)
 
     return []
 
@@ -252,10 +267,10 @@ def _try_selenium_dom_request(document_url: str) -> List[str]:
         List of page UUIDs
     """
     if not SELENIUM_AVAILABLE:
-        print("Selenium not available, cannot render JavaScript")
+        logger.debug("Selenium not available, cannot render JavaScript")
         return []
 
-    print("Trying with Selenium for JavaScript-rendered content...")
+    logger.debug("Trying with Selenium for JavaScript-rendered content...")
 
     chrome_options = _setup_selenium_options()
 
@@ -264,14 +279,14 @@ def _try_selenium_dom_request(document_url: str) -> List[str]:
         driver.set_page_load_timeout(30)
 
         try:
-            print(f"Loading page with Selenium: {document_url}")
+            logger.debug("Loading page with Selenium: %s", document_url)
             driver.get(document_url)
 
             # Wait for the page to load and navigation items to appear
             try:
                 WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "app-navigation-item")))
             except Exception:
-                print("Timed out waiting for app-navigation-item, proceeding anyway")
+                logger.debug("Timed out waiting for app-navigation-item, proceeding anyway")
 
             # Get the page HTML after JavaScript execution
             page_html = driver.page_source
@@ -285,17 +300,18 @@ def _try_selenium_dom_request(document_url: str) -> List[str]:
             for uuid in additional_uuids:
                 if uuid not in page_uuids:
                     page_uuids.append(uuid)
-                    print(f"Found page UUID from general search: {uuid}")
+                    logger.debug("Found page UUID from general search: %s", uuid)
 
-            print(f"Found {len(page_uuids)} pages in document via DOM parsing with Selenium")
+            logger.info("Found %d pages in document via DOM parsing with Selenium", len(page_uuids))
+            print("Found %d pages in document via DOM parsing with Selenium", len(page_uuids))
             return page_uuids
 
         finally:
             driver.quit()
 
     except Exception as e:
-        print(f"Error with Selenium DOM parsing: {e}")
-        print("Selenium may not be installed or Chrome driver not available")
+        logger.warning("Error with Selenium DOM parsing: %s", e)
+        logger.debug("Selenium may not be installed or Chrome driver not available")
         return []
 
 
@@ -325,8 +341,8 @@ def get_document_pages_from_dom(document_uuid: str) -> List[str]:
         return page_uuids
 
     # If all methods failed
-    print("All DOM parsing methods failed")
-    print("You may need to manually specify page UUIDs using --pages parameter")
+    logger.warning("All DOM parsing methods failed")
+    logger.warning("You may need to manually specify page UUIDs using --pages parameter")
     return []
 
 
@@ -341,13 +357,20 @@ def check_dezoomify_rs(dezoomify_path: str = "dezoomify-rs") -> bool:
         True if dezoomify-rs is available, False otherwise
     """
     try:
-        result = subprocess.run([dezoomify_path, "--help"], capture_output=True, text=True, timeout=5, check=True)
-        return result.returncode == 0
-    except (subprocess.SubprocessError, FileNotFoundError):
+        result = subprocess.run([dezoomify_path, "--help"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            return True
+        logger.debug("dezoomify-rs --help returned non-zero: stdout=%s stderr=%s", result.stdout, result.stderr)
+        return False
+    except FileNotFoundError:
+        logger.debug("dezoomify-rs not found at path: %s", dezoomify_path)
+        return False
+    except subprocess.SubprocessError as e:
+        logger.debug("Error running dezoomify-rs --help: %s", e)
         return False
 
 
-def random_delay(min_seconds: float = 1.0, max_seconds: float = 20.0):
+def random_delay(min_seconds: float = 1.0, max_seconds: float = 15.0):
     """
     Sleep for a random amount of time between min and max seconds.
 
@@ -356,12 +379,15 @@ def random_delay(min_seconds: float = 1.0, max_seconds: float = 20.0):
         max_seconds: Maximum delay in seconds
     """
     delay = random.uniform(min_seconds, max_seconds)
-    print(f"Waiting {delay:.2f} seconds before next download...")
+    logger.info("Waiting %.2f seconds before next download...", delay)
     time.sleep(delay)
 
 
 def retrieve_dezoomified_image(
-    uuid: str, output_base: str = "output", dezoomify_path: str = "dezoomify-rs", dezoomify_args: List[str] = None
+    uuid: str,
+    output_base: str = "output",
+    dezoomify_path: str = "dezoomify-rs",
+    dezoomify_args: Optional[List[str]] = None,
 ) -> bool:
     """
     Retrieve the dezoomified image using dezoomify-rs.
@@ -376,10 +402,10 @@ def retrieve_dezoomified_image(
     """
     # Check if dezoomify-rs is available
     if not check_dezoomify_rs(dezoomify_path):
-        print(f"Error: dezoomify-rs not found at '{dezoomify_path}'.")
-        print("Please install it using: brew install dezoomify-rs")
-        print("Or specify the correct path using --dezoomify-path")
-        print("Or download from: https://github.com/lovasoa/dezoomify-rs/releases")
+        logger.error("Error: dezoomify-rs not found at '%s'.", dezoomify_path)
+        logger.error("Please install it using: brew install dezoomify-rs")
+        logger.error("Or specify the correct path using --dezoomify-path")
+        logger.error("Or download from: https://github.com/lovasoa/dezoomify-rs/releases")
         return False
 
     # Handle default value for dezoomify_args
@@ -389,38 +415,39 @@ def retrieve_dezoomified_image(
     # Construct the ImageProperties.xml URL
     image_properties_url = f"https://digitalnistudovna.army.cz/search/zoomify/uuid:{uuid}/ImageProperties.xml"
 
-    print(f"Using dezoomify-rs to download image from: {image_properties_url}")
+    logger.info("Using dezoomify-rs to download image from: %s", image_properties_url)
 
     try:
         # Run dezoomify-rs without specifying output format
         # dezoomify-rs will determine the appropriate format
-        print(f"Dezoomify-args: {dezoomify_args}")
+        logger.debug("Dezoomify-args: %s", dezoomify_args)
 
         result = subprocess.run(
             [dezoomify_path, *dezoomify_args, image_properties_url, output_base],
             capture_output=True,
             text=True,
-            check=True,
+            check=False,
             timeout=5 * 60,  # 5 minute timeout for large images
         )
 
         if result.returncode == 0:
-            # Determine what file was actually created
-            # dezoomify-rs might add .jpg, .png or other image extension
-
-            print(f"Image with output base {output_base} downloaded successfully.")
+            logger.info("Image with output base %s downloaded successfully.", output_base)
+            print("Image with output base %s downloaded successfully.", output_base)
             return True
 
-        print(f"Error running dezoomify-rs: {result.stderr}")
+        logger.error(
+            "Error running dezoomify-rs (returncode=%s). stdout=%s stderr=%s",
+            result.returncode,
+            result.stdout,
+            result.stderr,
+        )
         return False
 
     except subprocess.TimeoutExpired as e:
-        print("Error: dezoomify-rs timed out")
-        print(e)
+        logger.error("Error: dezoomify-rs timed out: %s", e)
         return False
     except subprocess.SubprocessError as e:
-        print(f"Error running dezoomify-rs: {e}")
-        print(e)
+        logger.error("Error running dezoomify-rs: %s", e)
         return False
 
 
@@ -442,34 +469,34 @@ def download_specific_pages(
         True if all downloads successful, False otherwise
     """
     # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     # Handle default value for dezoomify_args
     if dezoomify_args is None:
         dezoomify_args = []
 
-    print(f"Starting download of {len(page_uuids)} specific pages...")
+    logger.info("Starting download of %d specific pages...", len(page_uuids))
 
     # Download each page
     successful_downloads = 0
     failed_downloads = 0
 
     for i, page_uuid in enumerate(page_uuids, 1):
-        output_base = os.path.join(output_dir, f"page_{i:03d}_{page_uuid[:8]}")
+        output_base = Path(output_dir) / f"page_{i:03d}_{page_uuid[:8]}"
 
-        print(f"Downloading page {i}/{len(page_uuids)}: {page_uuid}")
+        logger.info("Downloading page %d/%d: %s", i, len(page_uuids), page_uuid)
 
         # Don't add delay before the first download
         if i > 1:
             random_delay()
-        actual_output = retrieve_dezoomified_image(page_uuid, output_base, dezoomify_path, dezoomify_args)
+        actual_output = retrieve_dezoomified_image(page_uuid, str(output_base), dezoomify_path, dezoomify_args)
 
         if actual_output:
             successful_downloads += 1
         else:
             failed_downloads += 1
 
-    print(f"\nDownload complete: {successful_downloads} successful, {failed_downloads} failed")
+    logger.info("\nDownload complete: %d successful, %d failed", successful_downloads, failed_downloads)
     return failed_downloads == 0
 
 
@@ -493,11 +520,39 @@ def retrieve_document(
     # Get list of all pages
     page_uuids = get_document_pages(document_uuid)
     if not page_uuids:
-        print("No pages found in document")
+        logger.warning("No pages found in document")
         return False
+
+    # Create properties file
+    # ensure output dir exists before creating properties file
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    create_download_properties_file(document_uuid, page_uuids, dezoomify_args, output_dir)
 
     # Use the common download function
     return download_specific_pages(page_uuids, output_dir, dezoomify_path, dezoomify_args)
+
+
+def create_download_properties_file(
+    document_uuid: str, page_uuids: List[str], dezoomify_args: List[str], output_dir: str
+):
+    """
+    Create a properties file for a downloaded document.
+    """
+    try:
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        props_path = out_dir / "properties.txt"
+        with props_path.open("w", encoding="utf-8") as f:
+            f.write(f"Document_uuid: {document_uuid}\n")
+            f.write("pages:\n")
+            for page_uuid in page_uuids:
+                f.write(f"    {page_uuid}\n")
+            f.write(f"Page count: {len(page_uuids)}\n")
+            f.write(f"Dezoomify-rs args: {' '.join(dezoomify_args or [])}\n")
+            f.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        logger.debug("Created properties file at %s", props_path)
+    except Exception as e:
+        logger.error("Error creating properties file: %s", e)
 
 
 def main():
@@ -512,8 +567,14 @@ def main():
     parser.add_argument(
         "--dezoomify-args", nargs="?", action="append", help="Additional arguments to pass to dezoomify-rs"
     )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose (debug) logging")
 
     args = parser.parse_args()
+
+    # Configure logging
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.DEBUG if args.verbose else logging.INFO
+    )
 
     # URL is now required
     source_url = args.url
@@ -523,29 +584,29 @@ def main():
     # Extract both UUIDs
     document_uuid, page_uuid = extract_uuids_from_url(source_url)
     if not document_uuid:
-        print("Could not extract document UUID from URL")
+        logger.error("Could not extract document UUID from URL")
         return
 
-    print(f"Extracted document UUID: {document_uuid}")
+    logger.info("Extracted document UUID: %s", document_uuid)
     if page_uuid:
-        print(f"Extracted page UUID: {page_uuid}")
+        logger.info("Extracted page UUID: %s", page_uuid)
 
-    print(f"Using dezoomify-rs at: {dezoomify_path}")
+    logger.info("Using dezoomify-rs at: %s", dezoomify_path)
 
     # If pages are manually specified, use them
     if args.pages:
-        print(f"Using manually specified {len(args.pages)} pages")
+        logger.info("Using manually specified %d pages", len(args.pages))
         page_uuids = args.pages
-        print(f"dezoomify-args in main {dezoomify_args}")
+        logger.debug("dezoomify-args in main %s", dezoomify_args)
         success = download_specific_pages(page_uuids, args.output, dezoomify_path, dezoomify_args)
     else:
         # Try automatic discovery
         success = retrieve_document(document_uuid, args.output, dezoomify_path, dezoomify_args)
 
     if success:
-        print("Document retrieval completed successfully")
+        logger.info("Document retrieval completed successfully")
     else:
-        print("Document retrieval completed with some failures")
+        logger.warning("Document retrieval completed with some failures")
 
 
 if __name__ == "__main__":
