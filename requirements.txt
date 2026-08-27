@@ -6,3 +6,6 @@ beautifulsoup4>=4.12.0
 # dezoomify-rs command-line tool for image downloading
 # Install dezoomify-rs via: brew install dezoomify-rs
 # Or download from: https://github.com/lovasoa/dezoomify-rs/releases
+
+urllib3
+selenium

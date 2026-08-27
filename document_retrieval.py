@@ -3,102 +3,102 @@
 Document Retrieval Script
 
 This script processes a file containing document URLs and retrieves
-all pages for each document using the dezoomify_retrieval.py script.
+all pages for each document.
 """
 
 import argparse
-import subprocess
-import sys
-from typing import List
 import logging
 from pathlib import Path
+from typing import Dict
+
+from src.library_models.base.base_library import BaseLibrary
+from src.library_models.factories.library_factory import LibraryFactory
 
 logger = logging.getLogger(__name__)
 
 
-def read_urls_from_file(file_path: str) -> List[str]:
-    """
-    Read URLs from a text file, one per line.
+def preprocess_documents(
+    documents_file_path: Path, output_dir: str = "output", page_uuids: list[str] = None
+) -> Dict[str, BaseLibrary]:
+    """Read a file containing document URLs and build library objects.
+
+    This function reads a newline-separated file of document URLs (ignoring
+    lines that start with '#'), determines the correct library implementation
+    for each URL using LibraryFactory, preprocesses the document via the
+    library-specific preprocessing hook, and collects libraries keyed by their
+    string representation.
 
     Args:
-        file_path: Path to the text file containing URLs
+        documents_file_path: Path to a text file containing one document URL per line.
+        output_dir: Base output directory used when preprocessing documents.
+        page_uuids: Optional list of page UUIDs to pass-through to preprocessing; if
+            supplied, the preprocessing may attach only those pages.
 
     Returns:
-        List of URLs
+        A dictionary mapping library string identifiers to BaseLibrary instances
+        that contain the preprocessed documents.
     """
-    urls = []
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):  # Skip empty lines and comments
-                    urls.append(line)
-    except FileNotFoundError:
-        logger.error("Error: File not found: %s", file_path)
-        sys.exit(1)
-    except Exception as e:
-        logger.error("Error reading file: %s", e)
-        sys.exit(1)
+    libraries: Dict[str, BaseLibrary] = {}
+    with documents_file_path.open("r", encoding="UTF-8") as f:
+        document_urls = [line.strip() for line in f if not line.strip().startswith("#")]
 
-    return urls
+    for document_url in document_urls:
+        try:
+            library = LibraryFactory.from_url(document_url)
+            library.append_preprocessed_document(
+                library.preprocess_document_from_url(document_url, output_dir=output_dir, page_uuids=page_uuids)
+            )
+            libraries[str(library)] = library
+        except ValueError as e:
+            logger.exception("Failed to create library for URL %s: %s", document_url, e)
+
+    return libraries
 
 
-def retrieve_document(url: str, additional_args: List[str], document_number: int, base_output_dir: str) -> bool:
-    """
-    Retrieve a single document using dezoomify_retrieval.py.
+def process_library_documents(library: BaseLibrary, additional_args: dict[str, list], output_dir: str) -> bool:
+    """Process every document attached to a library.
+
+    Iterates over the preprocessed documents stored in the given BaseLibrary and
+    invokes the library-specific process_document hook for each document. Any
+    exceptions raised during processing are logged and the document is recorded
+    as failed.
 
     Args:
-        url: URL of the document
-        additional_args: Additional arguments to pass to dezoomify_retrieval.py
-        document_number: The document number for naming the output directory
-        base_output_dir: Base output directory
+        library: The BaseLibrary instance whose documents should be processed.
+        additional_args: A dictionary of additional arguments to pass through to
+            the processing hooks (for example, pages or dezoomify options).
+        output_dir: Base output directory where processed artifacts should be
+            written.
 
     Returns:
-        True if successful, False otherwise
+        True when all documents processed successfully; False if any document
+        failed during processing.
     """
-    # Create document-specific output directory
-    document_output_dir = Path(base_output_dir) / f"document_{document_number:03d}"
-    # keep the original behavior of failing if the directory already exists
-    document_output_dir.mkdir(parents=True, exist_ok=False)
+    failed_documents = []
+    for library_document in library.documents:
+        try:
+            library.process_document(library_document, additional_args, output_dir)
+        except Exception as e:
+            logger.exception("Failed to process document %s: %s", library_document.source_url, e)
+            failed_documents.append(library_document)
 
-    # Update the output argument in additional_args
-    output_args = []
-    i = 0
-    while i < len(additional_args):
-        arg = additional_args[i]
-        logger.debug("arg: %s", arg)
-        if arg == "--output" and i + 1 < len(additional_args):
-            # Skip the next argument as we'll override it
-            i += 2
-        elif arg.startswith("--output="):
-            # Skip this argument as we'll override it
-            i += 1
-        else:
-            output_args.append(arg)
-            i += 1
-
-    # Add our custom output directory
-    output_args.extend(["--output", str(document_output_dir)])
-
-    command = ["python", "dezoomify_retrieval.py", url] + output_args
-
-    try:
-        print("\nProcessing document %d: %s", document_number, url)
-        logger.info("Output directory: %s", document_output_dir)
-        logger.debug("Running command: %s", command)
-        result = subprocess.run(command, check=False, capture_output=True, text=True)
-        if result.returncode != 0:
-            logger.error("dezoomify_retrieval failed for %s (returncode=%s)", url, result.returncode)
-            logger.error("stdout: %s", result.stdout)
-            logger.error("stderr: %s", result.stderr)
-        return result.returncode == 0
-    except Exception as e:
-        logger.error("Error processing document %s: %s", url, e)
-        return False
+    return len(failed_documents) == 0
 
 
 def main():
-    """Main function to process multiple documents."""
+    """Main entry point: parse CLI args and process multiple documents.
+
+    This script expects a path to a text file containing document URLs (one per
+    line). It constructs library objects for each URL, optionally filters pages
+    and dezoomify settings through command-line options, and processes each
+    library's documents.
+
+    Args:
+        None (reads arguments from sys.argv via argparse).
+
+    Returns:
+        None. The function configures logging and exits with side-effects (files, logs).
+    """
     parser = argparse.ArgumentParser(description="Retrieve multiple documents from a file")
     parser.add_argument("--documents_file", help="Path to text file containing document URLs (one per line)")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose (debug) logging")
@@ -119,48 +119,38 @@ def main():
         format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.DEBUG if args.verbose else logging.INFO
     )
 
-    # Read URLs from file
-    urls = read_urls_from_file(args.documents_file)
-
-    if not urls:
-        print("No URLs found in file")
-        sys.exit(1)
-
-    logger.info("Found %d documents to process", len(urls))
-
     # Build additional arguments to pass through
-    additional_args = []
+    additional_args = {}
     if args.pages:
-        additional_args.extend(["--pages"] + args.pages)
+        additional_args["--pages"] = args.pages
     if args.dezoomify_path != "dezoomify-rs":
-        additional_args.extend(["--dezoomify-path", args.dezoomify_path])
+        additional_args["dezoomify-path"] = args.dezoomify_path
     if args.dezoomify_args:
-        additional_args.extend([f"--dezoomify-args={dezoomify_arg}" for dezoomify_arg in args.dezoomify_args])
+        additional_args["dezoomify-args"] = []
+        for arg in args.dezoomify_args:
+            additional_args["dezoomify-args"].append(arg)
     logger.debug("Additional args to pass: %s", additional_args)
+
     # Create base output directory
     Path(args.output).mkdir(parents=True, exist_ok=True)
 
-    # Process each document
-    successful = 0
-    failed = 0
+    success = True
+    try:
+        # Preprocess each document
+        libraries: Dict[str, BaseLibrary] = preprocess_documents(
+            Path(args.documents_file), output_dir=args.output, page_uuids=args.pages
+        )
+        # Start processing per library
+        for library in libraries.values():
+            success = process_library_documents(library, additional_args, args.output)
+    except ValueError as e:
+        print(e)
 
-    for i, url in enumerate(urls, 1):
-        logger.info("\n%s", "=" * 60)
-        logger.info("Document %d/%d", i, len(urls))
-        logger.info("%s", "=" * 60)
-
-        logger.debug("retrieve_document(%s, %s, %d, %s)", url, additional_args, i, args.output)
-        if retrieve_document(url, additional_args, i, args.output):
-            successful += 1
-        else:
-            failed += 1
-
-    logger.info("\n%s", "=" * 60)
-    logger.info("Processing complete: %d successful, %d failed", successful, failed)
-    logger.info("%s", "=" * 60)
-
-    if failed > 0:
-        sys.exit(1)
+    # Collect and display results
+    if success:
+        logger.info("All documents processed successfully.")
+    else:
+        logger.warning("Some documents failed to process. Check logs for details.")
 
 
 if __name__ == "__main__":
