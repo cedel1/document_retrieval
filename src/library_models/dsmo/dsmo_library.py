@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Optional
 from typing import Sequence
 
-from src.library_models.dsmo.dsmo_document import DSMODocument
 from src.library_models.base.base_library import BaseLibrary
+from src.library_models.dsmo.dsmo_document import DSMODocument
 from src.library_models.dsmo.dsmo_document_factory import DSMODocumentFactory
 from src.servers.base_server import BaseServerType
 from src.servers.kramerius_5_server import Kramerius5ServerType

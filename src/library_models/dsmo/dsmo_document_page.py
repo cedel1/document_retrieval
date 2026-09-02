@@ -34,7 +34,8 @@ class DSMODocumentPage(BaseDocumentPage):
 
         Args:
             page_id: UUID of the page to be downloaded.
-         Returns:
+
+        Returns:
             str: The download URL for the specified page.
         """
         result = DSMODocumentPage.page_properties_download_url.format(
