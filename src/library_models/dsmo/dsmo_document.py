@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 from typing import Sequence
 
 from src.library_models.base.base_document import BaseDocument
 from src.library_models.dsmo.dsmo_document_page import DSMODocumentPage
-from src.services.download_service import DownloadService
 from src.services.url_parser import DocumentUrlParser
 
 
@@ -29,22 +28,6 @@ class DSMODocument(BaseDocument):
             ValueError: If no document UUID can be found in the provided URL.
         """
         return DocumentUrlParser.extract_document_uuid(source_url)
-
-    def download(self, dezoomify_path: str = "dezoomify-rs", dezoomify_args: Optional[List[str]] = None) -> bool:
-        """Download all pages for this DSMO document.
-
-        Args:
-            dezoomify_path: Path or command name of the dezoomify executable.
-            dezoomify_args: Optional additional command-line arguments.
-
-        Returns:
-            bool: True when the document download succeeds, otherwise False.
-        """
-        if not self.pages:
-            return False
-
-        service = DownloadService()
-        return service.download_document(self, dezoomify_path, dezoomify_args)
 
     def from_url(self, source_url: str, output_dir: str = "output") -> DSMODocument:
         """Create a DSMODocument instance from a source URL.

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+import logging
+from abc import ABC
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Sequence
-import logging
 
 from src.library_models.base.base_document_page import BaseDocumentPage
 
@@ -122,15 +122,3 @@ class BaseDocument(ABC):
             logger.debug("Created properties file at %s", self.properties_path)
         except Exception as exc:  # pragma: no cover - filesystem dependent
             logger.exception("Error creating properties file: %s", exc)
-
-    @abstractmethod
-    def download(self, dezoomify_path: str = "dezoomify-rs", dezoomify_args: Optional[List[str]] = None) -> bool:
-        """Download all pages in the document.
-
-        Args:
-            dezoomify_path: Path or command name of the dezoomify executable.
-            dezoomify_args: Optional additional command-line arguments.
-
-        Returns:
-            bool: True when the document download succeeds, otherwise False.
-        """

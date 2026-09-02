@@ -11,16 +11,19 @@ class DSMODocumentPageFactory(BaseDocumentPageFactory):
     """Concrete factory for page objects."""
 
     @staticmethod
-    def from_uuid(page_uuid: str, page_url: str, index: int, output_dir: str = "output") -> BaseDocumentPage:
+    def from_uuid(
+        page_uuid: str, page_url: str, page_detail_url: str, index: int, output_dir: str = "output"
+    ) -> BaseDocumentPage:
         """Create a DSMO document page from its UUID and metadata.
 
         Args:
             page_uuid: Unique identifier of the page.
             page_url: URL used to access the page.
-            index: Zero-based ordering of the page in the document.
+            page_detail_url: The detail URL for the page.
+            index: Zero-based position of the page within the document.
             output_dir: Target directory for the downloaded page output.
 
         Returns:
             BaseDocumentPage: A configured DSMO page instance.
         """
-        return DSMODocumentPage(page_uuid, page_url, index, output_dir)
+        return DSMODocumentPage(page_uuid, page_url, page_detail_url, index, output_dir)

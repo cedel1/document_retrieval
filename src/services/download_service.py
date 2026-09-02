@@ -54,7 +54,7 @@ class DownloadService:
 
     @staticmethod
     def retrieve_dezoomified_image(
-        uuid: str,
+        properties_download_url: str,
         output_base: str = "output",
         dezoomify_path: str = "dezoomify-rs",
         dezoomify_args: Optional[List[str]] = None,
@@ -62,7 +62,7 @@ class DownloadService:
         """Download the dezoomified image for one page UUID.
 
         Args:
-            uuid: UUID of the page to download.
+            properties_download_url: UUID of the page to download.
             output_base: Base output path to use when storing the downloaded image.
             dezoomify_path: Path or command name of the dezoomify executable.
             dezoomify_args: Optional additional command-line arguments.
@@ -80,14 +80,13 @@ class DownloadService:
         if dezoomify_args is None:
             dezoomify_args = []
 
-        image_properties_url = f"https://digitalnistudovna.army.cz/search/zoomify/uuid:{uuid}/ImageProperties.xml"
-        logger.info("Using dezoomify-rs to download image from: %s", image_properties_url)
+        logger.info("Using dezoomify-rs to download image from: %s", properties_download_url)
 
         try:
             DownloadService.random_delay()  # Random delay to avoid hammering the server
             logger.debug("Dezoomify-args: %s", dezoomify_args)
             result = subprocess.run(
-                [dezoomify_path, *dezoomify_args, image_properties_url, output_base],
+                [dezoomify_path, *dezoomify_args, properties_download_url, output_base],
                 capture_output=True,
                 text=True,
                 check=False,

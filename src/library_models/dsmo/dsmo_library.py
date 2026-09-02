@@ -18,6 +18,7 @@ class DSMOLibrary(BaseLibrary):
 
     server_urls: list[str] = ["https://www.digitalniknihovna.cz/dsmo/", "https://digitalnistudovna.army.cz/"]
     server_type: BaseServerType = Kramerius5ServerType()  # NOSONAR  # subclass of BaseServerType
+    page_detail_url: str = "https://digitalnistudovna.army.cz/"
     library_name = "Library_DSMO"
 
     def __init__(self, document_url: Optional[str] = None) -> None:
@@ -34,19 +35,31 @@ class DSMOLibrary(BaseLibrary):
         super().__init__(document_url)
 
     def preprocess_document_from_url(
-        self, document_url: str, output_dir: str = "output", page_uuids: Optional[Sequence[str]] = None
+        self,
+        document_url: str,
+        page_detail_url: str,
+        output_dir: str = "output",
+        page_uuids: Optional[Sequence[str]] = None,
     ) -> DSMODocument:
         """Preprocess a document before processing.
 
         Args:
             document_url: URL of the document to preprocess.
+            page_detail_url: The base server URL for the document page.
             output_dir: Directory used to store generated document artifacts.
             page_uuids: Optional page identifiers to attach immediately.
 
         Returns:
             DSMODocument: The preprocessed document.
+
+        Raises:
+            ValueError: If the document URL does not belong to this library.
         """
         output_path = str(Path(output_dir + "/" + self.library_name))
         return DSMODocumentFactory.from_url(
-            library=self, source_url=document_url, output_dir=output_path, page_uuids=page_uuids
+            library=self,
+            source_url=document_url,
+            page_detail_url=page_detail_url,
+            output_dir=output_path,
+            page_uuids=page_uuids,
         )

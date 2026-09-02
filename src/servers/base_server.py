@@ -23,6 +23,7 @@ class BaseServerType(ABC):
         # "simple_dom": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
         # "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
     }
+    document_properties_file: str = ""
 
     def __str__(self) -> str:
         """Return a readable identifier for the current server type.

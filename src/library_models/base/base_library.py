@@ -7,8 +7,6 @@ from typing import Optional, Sequence
 
 from src.helpers.singleton import Singleton, SingletonMeta
 from src.library_models.base.base_document import BaseDocument
-
-# from src.library_models.base.base_document_factory import BaseDocumentFactory
 from src.servers.base_server import BaseServerType
 
 
@@ -21,6 +19,7 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
 
     server_urls: list[str] = []
     server_type: Optional[BaseServerType] = None
+    page_detail_url: str = ""
     library_name = "Library_Base"
 
     def __init__(self, document_url: Optional[str] = "") -> None:
@@ -48,23 +47,40 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
         """
         return any(document_url.startswith(url) for url in cls.server_urls)
 
+    @classmethod
+    def get_document_base_server_url(cls, document_url: str) -> str:
+        """Get the base server URL for a document hosted on this library.
+
+        Args:
+            document_url: URL of the document being checked.
+
+        Returns:
+            str: The base server URL if the document is hosted on this library; otherwise raises a ValueError.
+        """
+        for url in cls.server_urls:
+            if document_url.startswith(url):
+                return url
+        raise ValueError(f"Document URL {document_url} does not belong to library {cls.__name__}")
+
     @abstractmethod
     def preprocess_document_from_url(
-        self, document_url: str, output_dir: str = "output", page_uuids: Optional[Sequence[str]] = None
+        self,
+        document_url: str,
+        page_detail_url: str,
+        output_dir: str = "output",
+        page_uuids: Optional[Sequence[str]] = None,
     ) -> BaseDocument:
         """Preprocess a document before processing.
 
         Args:
             document_url: URL of the document to preprocess.
+            page_detail_url: The detail URL for the document.
             output_dir: Directory used to store generated document artifacts.
             page_uuids: Optional page identifiers to attach immediately.
 
         Returns:
             BaseDocument: The preprocessed document.
         """
-        # return BaseDocumentFactory.from_url(
-        #     library=self, source_url=document_url, output_dir=output_dir, page_uuids=page_uuids
-        # )
 
     def append_preprocessed_document(self, document: BaseDocument) -> None:
         """Append a preprocessed document to the library's document list.

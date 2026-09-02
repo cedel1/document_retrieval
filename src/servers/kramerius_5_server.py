@@ -18,6 +18,7 @@ class Kramerius5ServerType(BaseServerType):
         # "simple_dom": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
         "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
     }
+    # document_properties_file: str = "ImageProperties.xml"
 
     def get_document_pages(self, document_url: str) -> list[str]:
         """Get the set of document pages available for Kramerius 5 servers.
@@ -40,7 +41,12 @@ class Kramerius5ServerType(BaseServerType):
             logger.debug("Class for page method %s: %s", page_method, class_)
             # call the class with the provided document_page_methods[key] value as an argument
             try:
-                logger.debug("Calling class %s with document_url: %s and search_attribute: %s", class_, document_url, search_attribute)
+                logger.debug(
+                    "Calling class %s with document_url: %s and search_attribute: %s",
+                    class_,
+                    document_url,
+                    search_attribute,
+                )
                 page_urls = class_().get_pages(document_url, search_attribute)
                 logger.debug("Page URLs found: %s", page_urls)
             except ValueError as e:

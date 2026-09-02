@@ -12,12 +12,18 @@ class BaseDocumentPageFactory(ABC):
 
     @staticmethod
     @abstractmethod
-    def from_uuid(page_uuid: str, page_url: str, index: int, output_dir: str = "output") -> BaseDocumentPage:
+    def from_uuid(
+        page_uuid: str, page_url: str, page_detail_url: str, index: int, output_dir: str = "output"
+    ) -> BaseDocumentPage:
         """Build a single page object from a page UUID.
 
         Args:
             page_uuid: Unique identifier of the page.
             page_url: URL used to access the page content.
+            page_detail_url: The base server URL for the document page.
+            index: Zero-based position of the page within the document.
+            output_dir: Directory used to store page artifacts.
+
             index: Order of the page within the parent document.
             output_dir: Directory used to store page artifacts.
 
