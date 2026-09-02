@@ -4,6 +4,7 @@ from src.library_models.base.base_library import BaseLibrary
 from src.library_models.dsmo.dsmo_library import DSMOLibrary
 
 
+# pylint: disable-next=too-few-public-methods
 class LibraryFactory:
     """Construct the correct library model for an incoming document URL."""
 

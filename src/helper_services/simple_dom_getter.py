@@ -13,6 +13,7 @@ from src.helper_services.base_getter import BaseGetterMethod
 logger = logging.getLogger(__name__)
 
 
+# pylint: disable-next=too-few-public-methods
 class SimpleDomGetterMethod(BaseGetterMethod):
     """Extract page identifiers from HTML markup using a simple DOM scan."""
 

@@ -80,6 +80,7 @@ def process_library_documents(library: BaseLibrary, additional_args: dict[str, l
     for library_document in library.documents:
         try:
             library.process_document(library_document, additional_args, output_dir)
+        # pylint: disable-next=broad-exception-caught
         except Exception as e:
             logger.exception("Failed to process document %s: %s", library_document.source_url, e)
             failed_documents.append(library_document)

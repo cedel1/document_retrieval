@@ -25,6 +25,7 @@ class DownloadService:
             bool: True when the executable responds successfully, otherwise False.
         """
         try:
+            # pylint: disable-next=subprocess-run-check
             result = subprocess.run([dezoomify_path, "--help"], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 return True

@@ -7,6 +7,7 @@ from src.library_models.base.base_document_page_factory import BaseDocumentPageF
 from src.library_models.dsmo.dsmo_document_page import DSMODocumentPage
 
 
+# pylint: disable-next=too-few-public-methods
 class DSMODocumentPageFactory(BaseDocumentPageFactory):
     """Concrete factory for page objects."""
 
