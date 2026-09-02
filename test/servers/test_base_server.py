@@ -46,3 +46,12 @@ def test_get_class_from_name_returns_none_for_missing_helper(monkeypatch):
     monkeypatch.setattr(importlib, "import_module", lambda module_name: fake_module)
 
     assert ExampleServerType()._get_class_from_name("DoesNotExist") is None
+
+
+def test_get_class_from_name_returns_none_when_module_import_fails(monkeypatch):
+    def fake_import(name):
+        raise ImportError("missing module")
+
+    monkeypatch.setattr(importlib, "import_module", fake_import)
+
+    assert ExampleServerType()._get_class_from_name("SimpleDomGetterMethod") is None

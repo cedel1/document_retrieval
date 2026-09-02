@@ -21,3 +21,8 @@ def test_concrete_subclass_can_implement_get_pages():
         "https://example.com",
         "pages",
     ]
+
+
+def test_abstract_base_getter_method_raises_not_implemented_when_called_directly():
+    with pytest.raises(NotImplementedError, match="This method should be implemented in subclasses"):
+        BaseGetterMethod.get_pages(None, "https://example.com", "pages")
