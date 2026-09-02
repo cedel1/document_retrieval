@@ -10,6 +10,7 @@ from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 logger = logging.getLogger(__name__)
 
 
+# pylint: disable-next=too-few-public-methods
 class DomSeleniumGetterMethod(SimpleDomGetterMethod):
     """Extract page identifiers from HTML markup using a simple DOM scan."""
 
@@ -50,6 +51,7 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
             Options: Selenium Chrome options configured for the automation flow.
         """
         try:
+            # pylint: disable-next=import-outside-toplevel
             from selenium.webdriver.chrome.options import Options
         except ImportError as exc:  # pragma: no cover - only when selenium missing
             raise RuntimeError("Selenium is required for DOM rendering fallback") from exc
@@ -73,9 +75,13 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
             str: The HTML content of the rendered page, or an empty string.
         """
         try:
+            # pylint: disable-next=import-outside-toplevel
             from selenium import webdriver
+            # pylint: disable-next=import-outside-toplevel
             from selenium.webdriver.common.by import By
+            # pylint: disable-next=import-outside-toplevel
             from selenium.webdriver.support import expected_conditions as EC
+            # pylint: disable-next=import-outside-toplevel
             from selenium.webdriver.support.ui import WebDriverWait
         except ImportError:
             logger.debug("Selenium not available, cannot render JavaScript")
@@ -94,11 +100,13 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
                     WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((By.CLASS_NAME, "app-navigation-item"))
                     )
+                # pylint: disable-next=broad-exception-caught
                 except Exception:
                     logger.debug("Timed out waiting for app-navigation-item, proceeding anyway")
                 return driver.page_source
             finally:
                 driver.quit()
+        # pylint: disable-next=broad-exception-caught
         except Exception as exc:  # pragma: no cover - environment dependent
             logger.warning("Error with Selenium DOM parsing: %s", exc)
             logger.debug("Selenium may not be installed or Chrome driver not available")

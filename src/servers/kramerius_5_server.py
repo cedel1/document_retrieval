@@ -8,6 +8,7 @@ from .base_server import BaseServerType
 logger = logging.getLogger(__name__)
 
 
+# pylint: disable-next=too-few-public-methods
 class Kramerius5ServerType(BaseServerType):
     """Concrete server configuration for Kramerius 5 instances."""
 
@@ -45,9 +46,11 @@ class Kramerius5ServerType(BaseServerType):
                     search_attribute,
                 )
                 page_urls = class_().get_pages(document_url, search_attribute)
+                # pylint: disable-next=logging-not-lazy,consider-using-f-string
                 logger.debug("Page URLs found: %s" % page_urls)
             except ValueError as e:
                 # if the class raises a ValueError, log the error and continue to the next method
+                # pylint: disable-next=logging-not-lazy,consider-using-f-string
                 logger.exception("Error in %s method: %s" % (page_method, e))
                 continue
             # if the class returns a valid list of document pages, return that list and stop iterating through the keys

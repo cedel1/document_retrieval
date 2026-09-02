@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from src.library_models.base.base_document_page import BaseDocumentPage
 
 
+# pylint: disable-next=too-few-public-methods
 class BaseDocumentPageFactory(ABC):
     """Factory API for building page objects."""
 

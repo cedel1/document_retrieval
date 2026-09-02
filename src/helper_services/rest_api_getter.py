@@ -5,6 +5,7 @@ import requests
 from src.helper_services.base_getter import BaseGetterMethod
 
 
+# pylint: disable-next=too-few-public-methods
 class RestApiGetterMethod(BaseGetterMethod):
     """Fetch page information from a document library's REST API."""
 

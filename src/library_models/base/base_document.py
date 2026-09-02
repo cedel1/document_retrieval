@@ -120,5 +120,6 @@ class BaseDocument(ABC):
                 properties_file.write(f"Dezoomify-rs args: {' '.join(dezoomify_args or [])}\n")
                 properties_file.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             logger.debug("Created properties file at %s", self.properties_path)
+        # pylint: disable-next=broad-exception-caught
         except Exception as exc:  # pragma: no cover - filesystem dependent
             logger.exception("Error creating properties file: %s", exc)

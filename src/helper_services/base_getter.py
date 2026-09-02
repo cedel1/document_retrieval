@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 
+# pylint: disable-next=too-few-public-methods
 class BaseGetterMethod(ABC):
     """Abstract base class for page-discovery getter implementations."""
 
