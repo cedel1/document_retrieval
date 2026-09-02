@@ -25,7 +25,7 @@ Or download it from [GitHub releases](https://github.com/lovasoa/dezoomify-rs/re
 ### Basic Usage
 
 ```bash
-python dezoomify_retrieval.py <URL>
+python document_retrieval.py <URL>
 ```
 
 ### Arguments
@@ -41,37 +41,37 @@ python dezoomify_retrieval.py <URL>
 #### Automatic Page Discovery
 
 ```bash
-python dezoomify_retrieval.py "https://www.digitalniknihovna.cz/dsmo/view/uuid:a8839797-e14a-4992-9ba3-c9abcf631d88?page=uuid:12ee3ffa-254f-11eb-a67c-001b63bd97ba&fulltext=befestigung"
+python document_retrieval.py "https://www.digitalniknihovna.cz/dsmo/view/uuid:a8839797-e14a-4992-9ba3-c9abcf631d88?page=uuid:12ee3ffa-254f-11eb-a67c-001b63bd97ba&fulltext=befestigung"
 ```
 
 #### Manual Page Specification
 
 ```bash
-python dezoomify_retrieval.py "https://www.digitalniknihovna.cz/dsmo/view/uuid:a8839797-e14a-4992-9ba3-c9abcf631d88?page=uuid:12ee3ffa-254f-11eb-a67c-001b63bd97ba&fulltext=befestigung" --pages 12ee3ffa-254f-11eb-a67c-001b63bd97ba
+python document_retrieval.py "https://www.digitalniknihovna.cz/dsmo/view/uuid:a8839797-e14a-4992-9ba3-c9abcf631d88?page=uuid:12ee3ffa-254f-11eb-a67c-001b63bd97ba&fulltext=befestigung" --pages 12ee3ffa-254f-11eb-a67c-001b63bd97ba
 ```
 
 #### Custom Output Directory
 
 ```bash
-python dezoomify_retrieval.py "https://..." --output my_images
+python document_retrieval.py "https://..." --output my_images
 ```
 
 #### Custom dezoomify-rs Path
 
 ```bash
-python dezoomify_retrieval.py "https://..." --dezoomify-path /path/to/dezoomify-rs
+python document_retrieval.py "https://..." --dezoomify-path /path/to/dezoomify-rs
 ```
 
 #### Additional dezoomify-rs Arguments
 
 ```bash
-python dezoomify_retrieval.py "https://..." --dezoomify-args "--largest" "--max-width" "4000"
+python document_retrieval.py "https://..." --dezoomify-args "--largest" "--max-width" "4000"
 ```
 
 #### Combined Options
 
 ```bash
-python dezoomify_retrieval.py "https://..." --pages uuid1 uuid2 uuid3 --output my_images --dezoomify-path /usr/local/bin/dezoomify-rs --dezoomify-args "--largest"
+python document_retrieval.py "https://..." --pages uuid1 uuid2 uuid3 --output my_images --dezoomify-path /usr/local/bin/dezoomify-rs --dezoomify-args "--largest"
 ```
 
 ## Features
