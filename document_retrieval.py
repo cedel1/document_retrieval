@@ -105,7 +105,7 @@ def main():
     parser.add_argument("--documents_file", help="Path to text file containing document URLs (one per line)")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose (debug) logging")
 
-    # Parse known arguments to pass through to dezoomify_retrieval.py
+    # Parse known arguments to pass through to document_retrieval.py
     parser.add_argument("--pages", nargs="+", help="List of page UUIDs to download (overrides automatic discovery)")
     parser.add_argument("--output", default="output", help="Base output directory for downloaded images")
     parser.add_argument(
