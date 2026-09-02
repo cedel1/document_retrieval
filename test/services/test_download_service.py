@@ -38,6 +38,15 @@ def test_check_dezoomify_rs_returns_false_for_missing_binary(monkeypatch):
     assert DownloadService.check_dezoomify_rs("missing-rs") is False
 
 
+def test_check_dezoomify_rs_returns_false_on_subprocess_error(monkeypatch):
+    def fake_run(*args, **kwargs):
+        raise subprocess.SubprocessError("bad shell")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert DownloadService.check_dezoomify_rs("broken-rs") is False
+
+
 def test_random_delay_uses_uniform_delay_and_sleep(monkeypatch):
     captured = {}
     monkeypatch.setattr("src.services.download_service.random.uniform", lambda min_value, max_value: 3.5)
@@ -59,6 +68,18 @@ def test_retrieve_dezoomified_image_returns_false_when_binary_missing(monkeypatc
 
     assert DownloadService.retrieve_dezoomified_image("https://example.com/image", output_base="/tmp/out") is False
     assert calls == []
+
+
+def test_retrieve_dezoomified_image_returns_false_on_subprocess_error(monkeypatch):
+    monkeypatch.setattr(DownloadService, "check_dezoomify_rs", lambda path="dezoomify-rs": True)
+    monkeypatch.setattr(DownloadService, "random_delay", lambda *args, **kwargs: None)
+
+    def fake_run(*args, **kwargs):
+        raise subprocess.SubprocessError("shell failure")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert DownloadService.retrieve_dezoomified_image("https://example.com/image") is False
 
 
 def test_retrieve_dezoomified_image_runs_dezoomify_with_args(monkeypatch):

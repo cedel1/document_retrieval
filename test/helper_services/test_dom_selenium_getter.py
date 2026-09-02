@@ -44,6 +44,49 @@ def test_get_pages_returns_empty_list_when_no_matching_ids_are_present(monkeypat
     assert getter.get_pages("https://example.com/document", PAGE_SEARCH_PATTERN) == []
 
 
+def test_try_selenium_dom_request_returns_empty_string_when_selenium_import_fails(monkeypatch):
+    getter = DomSeleniumGetterMethod()
+
+    real_import = __import__
+
+    def fake_import(name, *args, **kwargs):
+        if name.startswith("selenium"):
+            raise ImportError("selenium unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+
+    assert getter._try_selenium_dom_request("https://example.com/document") == ""
+
+
+def test_try_selenium_dom_request_returns_empty_string_when_driver_creation_fails(monkeypatch):
+    getter = DomSeleniumGetterMethod()
+
+    class FakeOptions:
+        def add_argument(self, argument):
+            pass
+
+    real_import = __import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "selenium":
+            selenium_module = type("SeleniumModule", (), {})()
+            selenium_module.webdriver = type(
+                "WebDriverModule",
+                (),
+                {"Chrome": staticmethod(lambda *a, **k: (_ for _ in ()).throw(RuntimeError("driver failed")))},
+            )
+            return selenium_module
+        if name == "selenium.webdriver.chrome.options":
+            module = type("OptionsModule", (), {"Options": FakeOptions})()
+            return module
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+
+    assert getter._try_selenium_dom_request("https://example.com/document") == ""
+
+
 def test_setup_selenium_options_configures_headless_chrome(monkeypatch):
     class FakeOptions:
         def __init__(self):

@@ -1,5 +1,25 @@
 [tool.black]
 line-length = 120
 
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == \"__main__\":",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
 [tool.pylint.format]
 max-line-length = 120

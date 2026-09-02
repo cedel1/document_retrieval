@@ -63,3 +63,8 @@ def test_base_library_process_document_uses_document_create_properties_file_and_
 
     assert document.pages[0].called == [("/tool", ["--largest"])]
     assert any("Processing document" in str(part) for call in calls for part in call)
+
+
+def test_base_library_get_document_base_server_url_raises_for_non_matching_url():
+    with pytest.raises(ValueError, match="does not belong to library"):
+        ConcreteLibrary.get_document_base_server_url("https://other.example/document")
