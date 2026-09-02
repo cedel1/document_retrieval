@@ -18,17 +18,6 @@ class SimpleDomGetterMethod(BaseGetterMethod):
 
     description: str = "Simple DOM getter"
 
-    # def __init__(self):
-    #     """Initialize the DOM-based getter with a document URL.
-    #
-    #     Args:
-    #         document_url: Entry page URL used to fetch and parse the document HTML.
-    #
-    #     Returns:
-    #         None: The getter instance is created in memory.
-    #     """
-    #     super().__init__()
-
     def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
         """Get the pages of a document.
 

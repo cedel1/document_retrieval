@@ -26,8 +26,8 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
         """Initialize a library definition with its URL and contained documents.
 
         Args:
-            library_url: Base URL for the document library.
-            documents: Optional list of documents already associated with the library.
+            document_url (Optional[str]): URL of a document hosted on this library. If provided,
+                the library_url attribute is selected from server_urls that match this value.
 
         Returns:
             None: The library instance is created in memory.
@@ -93,8 +93,12 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
         """
         self.documents.append(document)
 
-    def __str__(self):
-        """Return a string representation of the library."""
+    def __str__(self) -> str:
+        """Return a string representation of the library.
+
+        Returns:
+            str: The library class name (readable identifier).
+        """
         return f"{self.__class__.__name__}"
 
     def process_document(self, document: BaseDocument, additional_args: dict[str, list], output_dir: str) -> None:

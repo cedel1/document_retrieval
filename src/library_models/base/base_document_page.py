@@ -50,7 +50,8 @@ class BaseDocumentPage(ABC):
 
         Args:
             page_id: UUID of the page to be downloaded.
-         Returns:
+
+        Returns:
             str: The download URL for the specified page.
         """
         return BaseDocumentPage.page_properties_download_url.format(page_uuid=page_id)

@@ -14,11 +14,8 @@ class Kramerius5ServerType(BaseServerType):
     server_type = "kramerius"
     server_version = 5
     document_page_methods: dict[str, str | dict] = {
-        # "rest_api": "pages",
-        # "simple_dom": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
         "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
     }
-    # document_properties_file: str = "ImageProperties.xml"
 
     def get_document_pages(self, document_url: str) -> list[str]:
         """Get the set of document pages available for Kramerius 5 servers.
@@ -48,7 +45,7 @@ class Kramerius5ServerType(BaseServerType):
                     search_attribute,
                 )
                 page_urls = class_().get_pages(document_url, search_attribute)
-                logger.debug("Page URLs found: %s", page_urls)
+                logger.debug("Page URLs found: %s" % page_urls)
             except ValueError as e:
                 # if the class raises a ValueError, log the error and continue to the next method
                 logger.exception("Error in %s method: %s" % (page_method, e))

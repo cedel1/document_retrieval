@@ -19,6 +19,7 @@ class BaseServerType(ABC):
     server_version = 0
     base_getter_directory = "src.helper_services"
     document_page_methods: dict[str, str | dict] = {
+        # examples:
         # "rest_api": "pages",
         # "simple_dom": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
         # "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
