@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
 from src.library_models.base.base_document_page import BaseDocumentPage
 from src.services.download_service import DownloadService
 
+logger = logging.getLogger(__name__)
+
 
 class DSMODocumentPage(BaseDocumentPage):
     """Concrete page object containing page metadata and output configuration."""
+
+    page_properties_download_url = "{page_detail_url}search/zoomify/uuid:{page_uuid}/ImageProperties.xml"
 
     @staticmethod
     def get_page_url(page_id: str, document_url: str) -> str:
@@ -24,6 +29,20 @@ class DSMODocumentPage(BaseDocumentPage):
         """
         return f"{document_url}?page=uuid:{page_id}"
 
+    def get_page_download_url(self, page_id: str) -> str:
+        """Return the download URL for a given page UUID.
+
+        Args:
+            page_id: UUID of the page to be downloaded.
+         Returns:
+            str: The download URL for the specified page.
+        """
+        result = DSMODocumentPage.page_properties_download_url.format(
+            page_detail_url=self.page_detail_url, page_uuid=page_id
+        )
+        logger.debug("Download URL for page %s: %s", page_id, result)
+        return result
+
     def download(self, dezoomify_path: str = "dezoomify-rs", dezoomify_args: Optional[List[str]] = None) -> bool:
         """Download the current page using the dezoomify image pipeline.
 
@@ -36,9 +55,6 @@ class DSMODocumentPage(BaseDocumentPage):
         """
         return bool(
             DownloadService.retrieve_dezoomified_image(
-                self.identifier,
-                str(self.output_base),
-                dezoomify_path,
-                dezoomify_args or [],
+                self.get_page_download_url(self.identifier), str(self.output_base), dezoomify_path, dezoomify_args or []
             )
         )

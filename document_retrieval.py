@@ -46,7 +46,9 @@ def preprocess_documents(
         try:
             library = LibraryFactory.from_url(document_url)
             library.append_preprocessed_document(
-                library.preprocess_document_from_url(document_url, output_dir=output_dir, page_uuids=page_uuids)
+                library.preprocess_document_from_url(
+                    document_url, page_detail_url=library.page_detail_url, output_dir=output_dir, page_uuids=page_uuids
+                )
             )
             libraries[str(library)] = library
         except ValueError as e:

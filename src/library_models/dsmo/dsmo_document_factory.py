@@ -37,6 +37,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
     def from_uuid(
         document_uuid: str,
         source_url: str,
+        page_detail_url: str,
         output_dir: str = "output",
         page_uuids: Optional[Sequence[str]] = None,
     ) -> BaseDocument:
@@ -48,6 +49,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
         Args:
             document_uuid: The UUID of the document to construct.
             source_url: The original document URL; used to generate per-page URLs.
+            page_detail_url: The detail URL for the document.
             output_dir: Directory where the document and page outputs should be
                 written.
             page_uuids: Optional iterable of page UUIDs to include. If omitted,
@@ -63,14 +65,22 @@ class DSMODocumentFactory(BaseDocumentFactory):
         for index, page_uuid in enumerate(page_uuids or [], 1):
             pages.append(
                 DSMODocumentPageFactory.from_uuid(
-                    page_uuid, DSMODocumentPage.get_page_url(page_uuid, source_url), index, document_output_dir
+                    page_uuid,
+                    DSMODocumentPage.get_page_url(page_uuid, source_url),
+                    page_detail_url,
+                    index,
+                    document_output_dir,
                 )
             )
         return DSMODocument(document_uuid, output_dir=output_dir, pages=pages)
 
     @staticmethod
     def from_url(
-        library: BaseLibrary, source_url: str, output_dir: str = "output", page_uuids: Optional[Sequence[str]] = None
+        library: BaseLibrary,
+        source_url: str,
+        page_detail_url: str,
+        output_dir: str = "output",
+        page_uuids: Optional[Sequence[str]] = None,
     ) -> BaseDocument:
         """Create a DSMO document from a source URL, discovering pages if needed.
 
@@ -82,6 +92,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
         Args:
             library: The library instance that the document belongs to.
             source_url: The full URL that identifies the DSMO document.
+            page_detail_url: The detail URL for the document.
             output_dir: Directory where outputs will be written.
             page_uuids: Optional sequence of page UUIDs to use instead of
                 performing discovery.
@@ -92,4 +103,6 @@ class DSMODocumentFactory(BaseDocumentFactory):
         document_uuid = DSMODocumentFactory._extract_document_uuid_from_url(source_url)
         if page_uuids is None:
             page_uuids = library.server_type.get_document_pages(source_url)
-        return DSMODocumentFactory.from_uuid(document_uuid, source_url, output_dir=output_dir, page_uuids=page_uuids)
+        return DSMODocumentFactory.from_uuid(
+            document_uuid, source_url, library.page_detail_url, output_dir=output_dir, page_uuids=page_uuids
+        )

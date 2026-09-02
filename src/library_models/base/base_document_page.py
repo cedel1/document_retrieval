@@ -10,12 +10,17 @@ from typing import List, Optional
 class BaseDocumentPage(ABC):
     """Abstract representation of a single page within a document."""
 
-    def __init__(self, identifier: str, page_url: str, index: int, output_dir: str = "output") -> None:
+    page_properties_download_url: Optional[str] = None
+
+    def __init__(
+        self, identifier: str, page_url: str, page_detail_url: str, index: int, output_dir: str = "output"
+    ) -> None:
         """Initialize a page object for a single document page.
 
         Args:
             identifier: Unique identifier of the document page.
             page_url: URL used to fetch the page content.
+            page_detail_url: The detail URL for the page.
             index: Zero-based position of the page within the document.
             output_dir: Directory used to store downloaded page artifacts.
 
@@ -24,6 +29,7 @@ class BaseDocumentPage(ABC):
         """
         self.identifier = identifier
         self.page_url = page_url
+        self.page_detail_url = page_detail_url
         self.index = index
         self.output_dir = Path(output_dir)
 
@@ -39,17 +45,15 @@ class BaseDocumentPage(ABC):
         """
         return self.output_dir / f"page_{self.index:03d}_{self.identifier[:8]}"
 
-    @property
-    def image_properties_url(self) -> str:
-        """Return the ImageProperties XML URL for the current page UUID.
+    def get_page_download_url(self, page_id: str) -> str:
+        """Return the download URL for a given page UUID.
 
         Args:
-            None: This property does not accept arguments.
-
-        Returns:
-            str: URL of the image properties XML for the page.
+            page_id: UUID of the page to be downloaded.
+         Returns:
+            str: The download URL for the specified page.
         """
-        return f"https://digitalnistudovna.army.cz/search/zoomify/uuid:{self.identifier}/ImageProperties.xml"
+        return BaseDocumentPage.page_properties_download_url.format(page_uuid=page_id)
 
     @abstractmethod
     def download(self, dezoomify_path: str = "dezoomify-rs", dezoomify_args: Optional[List[str]] = None) -> bool:
