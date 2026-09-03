@@ -26,3 +26,10 @@ ignore-paths = ["test"]
 
 [tool.pylint.format]
 max-line-length = 120
+
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = [
+    "test",
+]
