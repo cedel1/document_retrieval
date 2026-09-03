@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
+import urllib.parse
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Tuple, Sequence
 
 from src.library_models.base.base_document import BaseDocument
 from src.library_models.base.base_document_factory import BaseDocumentFactory
@@ -11,27 +13,51 @@ from src.library_models.base.base_library import BaseLibrary
 from src.library_models.dsmo.dsmo_document import DSMODocument
 from src.library_models.dsmo.dsmo_document_page import DSMODocumentPage
 from src.library_models.dsmo.dsmo_document_page_factory import DSMODocumentPageFactory
-from src.services.url_parser import DocumentUrlParser
 
 
 class DSMODocumentFactory(BaseDocumentFactory):
     """Concrete factory to create document objects from UUIDs or URLs."""
 
     @staticmethod
-    def _extract_document_uuid_from_url(source_url: str) -> str:
-        """Extract the document UUID from a source URL.
+    def _extract_uuids(url: str) -> Tuple[Optional[str], Optional[str]]:
+        """Return both the document UUID and the page UUID present in a document URL.
 
         Args:
-            source_url: The full document URL which is expected to contain a
-                document UUID in its path or query parameters.
+            url: URL to parse for document and page UUID values.
 
         Returns:
-            The document UUID extracted from the source URL.
+            Tuple[Optional[str], Optional[str]]: A pair containing the document UUID and page UUID.
+        """
+        parsed = urllib.parse.urlparse(url)
+        params = urllib.parse.parse_qs(parsed.query)
+
+        path_match = re.search(r"uuid:([a-f0-9-]+)", parsed.path)
+        document_uuid = path_match.group(1) if path_match else None
+
+        page_uuid = None
+        if "page" in params:
+            page_match = re.search(r"uuid:([a-f0-9-]+)", params["page"][0])
+            page_uuid = page_match.group(1) if page_match else None
+
+        return document_uuid, page_uuid
+
+    @staticmethod
+    def _extract_document_uuid_from_url(source_url: str) -> str:
+        """Return the document UUID from a source URL or raise if it is missing.
+
+        Args:
+            source_url: URL to parse for the document UUID.
+
+        Returns:
+            str: The extracted document UUID.
 
         Raises:
-            ValueError: If no document UUID can be found in the provided URL.
+            ValueError: If the URL does not contain a document UUID.
         """
-        return DocumentUrlParser.extract_document_uuid(source_url)
+        document_uuid, _ = DSMODocumentFactory._extract_uuids(source_url)
+        if not document_uuid:
+            raise ValueError(f"Could not extract document UUID from URL: {source_url}")
+        return document_uuid
 
     @staticmethod
     def from_uuid(
@@ -104,5 +130,9 @@ class DSMODocumentFactory(BaseDocumentFactory):
         if page_uuids is None:
             page_uuids = library.server_type.get_document_pages(source_url)
         return DSMODocumentFactory.from_uuid(
-            document_uuid, source_url, library.page_detail_url, output_dir=output_dir, page_uuids=page_uuids
+            document_uuid,
+            source_url,
+            page_detail_url,
+            output_dir=output_dir,
+            page_uuids=page_uuids,
         )

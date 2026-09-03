@@ -20,8 +20,8 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
         """Get the pages of a document.
 
         Args:
-            search_parameter: The parameter to search for in the DOM.
             document_url: URL of the document page to fetch and parse.
+            search_parameter: The parameter to search for in the DOM.
 
         Returns:
             list[str]: Page UUIDs discovered in the DOM, or an empty list if none are found.
@@ -77,10 +77,13 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
         try:
             # pylint: disable-next=import-outside-toplevel
             from selenium import webdriver
+
             # pylint: disable-next=import-outside-toplevel
             from selenium.webdriver.common.by import By
+
             # pylint: disable-next=import-outside-toplevel
             from selenium.webdriver.support import expected_conditions as EC
+
             # pylint: disable-next=import-outside-toplevel
             from selenium.webdriver.support.ui import WebDriverWait
         except ImportError:
