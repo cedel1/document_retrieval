@@ -11,7 +11,7 @@ def test_get_pages_calls_api_with_expected_parameters_and_returns_payload(monkey
     captured = {}
 
     def fake_get(url, **kwargs):
-        captured["url"] = url
+        captured["source_url"] = url
         captured["kwargs"] = kwargs
         response = FakeResponse(json_data=API_PAYLOAD)
         response.raise_for_status = lambda: captured.__setitem__("raise_for_status_called", True)
@@ -22,7 +22,7 @@ def test_get_pages_calls_api_with_expected_parameters_and_returns_payload(monkey
     result = getter.get_pages("https://example.com/document", "pages")
 
     assert result == API_PAYLOAD["pages"]
-    assert captured["url"] == "https://example.com/api"
+    assert captured["source_url"] == "https://example.com/api"
     assert captured["kwargs"]["timeout"] == 30
     assert captured["kwargs"]["verify"] is False
     assert captured["raise_for_status_called"] is True

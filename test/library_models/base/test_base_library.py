@@ -9,7 +9,7 @@ class ConcreteLibrary(BaseLibrary):
     server_urls = ["https://example.com/"]
 
     def preprocess_document_from_url(self, document_url: str, page_detail_url: str, output_dir: str = "output", page_uuids=None):
-        return {"url": document_url, "output_dir": output_dir, "page_uuids": page_uuids}
+        return {"source_url": document_url, "output_dir": output_dir, "page_uuids": page_uuids}
 
 
 def test_base_library_resolves_library_url_and_document_membership():

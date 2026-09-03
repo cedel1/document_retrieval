@@ -14,6 +14,7 @@ class Kramerius5ServerType(BaseServerType):
 
     server_type = "kramerius"
     server_version = 5
+    document_identifier_url_pattern = re.compile(r"uuid:([a-f0-9-]+)")
     document_page_methods: dict[str, str | dict] = {
         "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
     }
