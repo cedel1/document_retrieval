@@ -11,7 +11,7 @@ def test_get_pages_calls_requests_with_expected_arguments_and_parses_response(mo
     captured = {}
 
     def fake_get(url, **kwargs):
-        captured["url"] = url
+        captured["source_url"] = url
         captured["kwargs"] = kwargs
         return FakeResponse(content=PAGE_HTML.encode("utf-8"))
 
@@ -32,7 +32,7 @@ def test_get_pages_calls_requests_with_expected_arguments_and_parses_response(mo
         "11111111-1111-1111-1111-111111111111",
         "22222222-2222-2222-2222-222222222222",
     ]
-    assert captured["url"] == "https://example.com/document"
+    assert captured["source_url"] == "https://example.com/document"
     assert captured["kwargs"]["timeout"] == 30
     assert captured["kwargs"]["verify"] is False
     assert captured["search_pattern"] == PAGE_SEARCH_PATTERN

@@ -4,6 +4,7 @@ import importlib
 import logging
 import string
 from abc import ABC, abstractmethod
+from re import Pattern
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,8 @@ class BaseServerType(ABC):
     server_type = "base"
     server_version = 0
     base_getter_directory = "src.helper_services"
+    # implementations should override this with a regex pattern to extract the document identifier from a URL
+    document_identifier_url_pattern: Pattern
     document_page_methods: dict[str, str | dict] = {
         # examples:
         # "rest_api": "pages",
