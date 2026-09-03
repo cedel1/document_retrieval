@@ -55,6 +55,7 @@ class SingletonMeta(type):
             return SingletonMeta._instances[cls]  # type: ignore[return-value]
 
 
+# pylint: disable-next=too-few-public-methods
 class Singleton(metaclass=SingletonMeta):
     """Convenience base class to make subclasses singletons.
 
@@ -73,4 +74,3 @@ class Singleton(metaclass=SingletonMeta):
     """
 
     # No additional implementation required; behavior provided by metaclass.
-    pass
