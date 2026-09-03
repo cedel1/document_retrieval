@@ -14,7 +14,7 @@ class BaseDocumentFactory(ABC):
 
     @staticmethod
     @abstractmethod
-    def from_uuid(
+    def from_identifier(
         document_uuid: str,
         source_url: str,
         page_detail_url: str,
