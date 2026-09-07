@@ -7,14 +7,31 @@ from requests import HTTPError
 
 from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 
+MSG_SELENIUM_REQUEST_FAILED = "Selenium request failed: %s"
+
 logger = logging.getLogger(__name__)
 
 
-# pylint: disable-next=too-few-public-methods
 class DomSeleniumGetterMethod(SimpleDomGetterMethod):
     """Extract page identifiers from HTML markup using a simple DOM scan."""
 
     description: str = "Selenium DOM getter"
+
+    def get_document_source(self, document_url: str) -> BeautifulSoup | None:
+        """Get the HTML source of a document page, using Selenium if necessary.
+
+        Args:
+            document_url: URL of the document page to fetch and parse.
+        """
+        soup = self.document_page_source
+        if soup is None:
+            try:
+                response = self._try_selenium_dom_request(document_url)
+                soup = self.document_page_source = BeautifulSoup(response, "html.parser")
+            except HTTPError as e:
+                logger.debug(MSG_SELENIUM_REQUEST_FAILED, e)
+
+        return soup
 
     def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
         """Get the pages of a document.
@@ -27,16 +44,15 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
             list[str]: Page UUIDs discovered in the DOM, or an empty list if none are found.
         """
         try:
-            response = self._try_selenium_dom_request(document_url)
-            soup = BeautifulSoup(response, "html.parser")
-
-            page_uuids = self._extract_uuids_from_divs_with_id_pattern(soup, search_parameter)
+            page_uuids = self._extract_uuids_from_divs_with_id_pattern(
+                self.get_document_source(document_url), search_parameter
+            )
 
             if page_uuids:
                 logger.info("Found %d pages via basic request (static content)", len(page_uuids))
                 return page_uuids
         except HTTPError as e:
-            logger.debug("Basic request failed: %s", e)
+            logger.debug(MSG_SELENIUM_REQUEST_FAILED, e)
 
         return []
 

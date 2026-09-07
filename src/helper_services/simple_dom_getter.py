@@ -6,6 +6,7 @@ from typing import List, Any
 
 import requests
 from bs4 import BeautifulSoup
+from lxml import etree
 from requests import HTTPError
 
 from src.helper_services.base_getter import BaseGetterMethod
@@ -13,11 +14,28 @@ from src.helper_services.base_getter import BaseGetterMethod
 logger = logging.getLogger(__name__)
 
 
-# pylint: disable-next=too-few-public-methods
 class SimpleDomGetterMethod(BaseGetterMethod):
     """Extract page identifiers from HTML markup using a simple DOM scan."""
 
     description: str = "Simple DOM getter"
+
+    def get_document_source(self, document_url: str) -> BeautifulSoup | str | None:
+        """Get the HTML source of a document page.
+
+        Args:
+            document_url: URL of the document page to fetch and parse.
+
+        Returns:
+            BeautifulSoup | None: The parsed HTML source of the document page, or None if not available.
+        """
+        try:
+            response = requests.get(document_url, timeout=30, verify=False)
+            response.raise_for_status()
+            self.document_page_source = BeautifulSoup(response.content, "html.parser")
+            return self.document_page_source
+        except HTTPError as e:
+            logger.debug("Basic request failed: %s", e)
+            return None
 
     def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
         """Get the pages of a document.
@@ -30,11 +48,9 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             list[str]: Page UUIDs discovered in the DOM, or an empty list if none are found.
         """
         try:
-            response = requests.get(document_url, timeout=30, verify=False)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, "html.parser")
-
-            page_uuids = self._extract_uuids_from_divs_with_id_pattern(soup, search_parameter)
+            page_uuids = self._extract_uuids_from_divs_with_id_pattern(
+                self.get_document_source(document_url), search_parameter
+            )
 
             if page_uuids:
                 logger.info("Found %d pages via basic request %s", len(page_uuids), page_uuids)
@@ -43,6 +59,24 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             logger.exception("Basic request failed: %s", e)
 
         return []
+
+    def get_name(self, document_url: str, xpath: str) -> str:
+        """Get the name of a document.
+
+        Args:
+            document_url: URL of the document page to fetch and parse.
+            xpath: The XPath expression to locate the document name in the DOM.
+
+        Returns:
+            str: The name of the document, or an empty string if not found.
+        """
+        try:
+            dom = etree.HTML(str(self.get_document_source(document_url)))
+            return dom.xpath(xpath)[0].text.strip()
+        except (HTTPError, IndexError) as e:
+            logger.exception("Failed to retrieve document name: %s", e)
+
+        return ""
 
     def _extract_uuids_from_divs_with_id_pattern(self, soup, search_pattern: dict | str) -> List[str]:
         """Extract UUIDs from div elements with id matching a pattern.
@@ -55,6 +89,9 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             List[str]: Page UUIDs discovered in matching elements.
         """
         page_uuids = []
+        if not soup:
+            return page_uuids
+
         all_matching_divs = soup.find_all(**search_pattern)
 
         for div in all_matching_divs:
@@ -75,6 +112,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             List[str]: Updated list of page UUIDs.
         """
         uuid_match = re.search(pattern, div_id)
+
         if uuid_match:
             page_uuid = uuid_match.group(1)
             if page_uuid not in page_uuids:  # Avoid duplicates (can't use set because order matters)

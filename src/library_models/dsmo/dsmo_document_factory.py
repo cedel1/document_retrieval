@@ -42,9 +42,11 @@ class DSMODocumentFactory(BaseDocumentFactory):
         return document_uuid
 
     @staticmethod
+    # pylint: disable-next=too-many-arguments, too-many-positional-arguments
     def from_identifier(
         document_uuid: str,
         source_url: str,
+        name: str,
         page_detail_url: str,
         output_dir: str = "output",
         page_uuids: Optional[Sequence[str]] = None,
@@ -57,6 +59,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
         Args:
             document_uuid: The UUID of the document to construct.
             source_url: The original document URL; used to generate per-page URLs.
+            name: The name of the document.
             page_detail_url: The detail URL for the document.
             output_dir: Directory where the document and page outputs should be
                 written.
@@ -80,7 +83,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
                     document_output_dir,
                 )
             )
-        return DSMODocument(document_uuid, output_dir=output_dir, pages=pages)
+        return DSMODocument(document_uuid, source_url=source_url, name=name, output_dir=output_dir, pages=pages)
 
     @staticmethod
     def from_url(
@@ -111,9 +114,17 @@ class DSMODocumentFactory(BaseDocumentFactory):
         document_uuid = DSMODocumentFactory._extract_document_uuid_from_url(source_url, library)
         if page_uuids is None:
             page_uuids = library.server_type.get_document_pages(source_url)
+        try:
+            name = library.server_type.get_document_name(source_url)
+        except ValueError:
+            # If the document name cannot be determined, continue with an
+            # empty name — page discovery and construction should still work.
+            name = ""
+
         return DSMODocumentFactory.from_identifier(
             document_uuid,
             source_url,
+            name,
             page_detail_url,
             output_dir=output_dir,
             page_uuids=page_uuids,
