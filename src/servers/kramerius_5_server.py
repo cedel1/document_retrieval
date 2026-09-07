@@ -18,6 +18,10 @@ class Kramerius5ServerType(BaseServerType):
     document_page_methods: dict[str, str | dict] = {
         "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
     }
+    document_name_xpath: str = (
+        "//html/body/app-root/main[contains(@class, 'app-wrapper')]/app-book/div[contains(@class, 'app-book-wrapper')]"
+        "/app-metadata[contains(@class, 'app-book-metadata')]/div/div[contains(@class, 'app-metadata-content')]/h1"
+    )
 
     def get_document_pages(self, document_url: str) -> list[str]:
         """Get the set of document pages available for Kramerius 5 servers.
@@ -60,3 +64,29 @@ class Kramerius5ServerType(BaseServerType):
 
         # if no valid document page methods were found, raise an error
         raise ValueError("Could not find pages for Kramerius 5 server.")
+
+    def get_document_name(self, document_url: str) -> str:
+        """Get the name of a document.
+
+        Args:
+            document_url: URL of the document whose name is requested.
+
+        Returns:
+            str: The name of the document, or an empty string if not found.
+        """
+        for page_method in self.document_page_methods:
+            # logger.info("Trying page method: %s with search attribute: %s", page_method, search_attribute)
+            # print(f"Trying page method: {page_method} with search attribute: {search_attribute}")
+            # create a class from the page method key
+            class_ = self._get_class_from_name(self._get_class_name(page_method))
+            print(f"Class for name method: {page_method} with document_url: {document_url}")
+            logger.debug("Class for name method %s: %s", page_method, class_)
+            try:
+                document_name = class_().get_name(document_url, self.document_name_xpath)
+            except ValueError as e:
+                logger.exception("Error in %s method: %s", page_method, e)
+                continue
+            if document_name:
+                return document_name
+
+        raise ValueError("Could not find document name for Kramerius 5 server.")

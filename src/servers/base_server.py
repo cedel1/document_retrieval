@@ -27,6 +27,7 @@ class BaseServerType(ABC):
         # "simple_dom": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
         # "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
     }
+    document_name_pattern: str
     document_properties_file: str = ""
 
     def __str__(self) -> str:
