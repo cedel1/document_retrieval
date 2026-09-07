@@ -1,11 +1,11 @@
 """REST API document discovery helpers."""
 
 import requests
+from requests import Response
 
 from src.helper_services.base_getter import BaseGetterMethod
 
 
-# pylint: disable-next=too-few-public-methods
 class RestApiGetterMethod(BaseGetterMethod):
     """Fetch page information from a document library's REST API."""
 
@@ -20,7 +20,25 @@ class RestApiGetterMethod(BaseGetterMethod):
         Returns:
             None: The getter instance is created in memory.
         """
+        super().__init__()
         self.api_url = api_url
+
+    def get_document_source(self, document_url: str) -> Response | None:
+        """REST API getter does not retrieve HTML source.
+
+        Args:
+            document_url: URL of the document page to fetch and parse.
+
+        Returns:
+            Response | None: The API response, or None if the request fails.
+        """
+        try:
+            response = requests.get(self.api_url, timeout=30, verify=False)
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            print(f"Error fetching pages from REST API: {e}")
+            return None
 
     def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
         """Get the pages of a document.
@@ -33,9 +51,23 @@ class RestApiGetterMethod(BaseGetterMethod):
             list[str]: A list of page identifiers returned by the API.
         """
         try:
-            response = requests.get(self.api_url, timeout=30, verify=False)
-            response.raise_for_status()
-            return response.json().get(search_parameter, [])
-        except requests.RequestException as e:
+            return self.get_document_source(document_url).json().get(search_parameter, [])
+        except (requests.RequestException, ValueError, AttributeError) as e:
             print(f"Error fetching pages from REST API: {e}")
             return []
+
+    def get_name(self, document_url: str, xpath: str) -> str:
+        """Get the name of a document.
+
+        Args:
+            document_url: URL of the document whose name is requested.
+            xpath: The XPath expression to locate the document name in the API response.
+
+        Returns:
+            str: The name of the document, or an empty string if not found.
+        """
+        try:
+            return self.get_document_source(document_url).json().get("name", "")
+        except (requests.RequestException, ValueError, AttributeError) as e:
+            print(f"Error fetching document name from REST API: {e}")
+            return ""

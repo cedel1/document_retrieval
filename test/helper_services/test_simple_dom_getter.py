@@ -50,6 +50,26 @@ def test_get_pages_returns_empty_list_on_http_error(monkeypatch):
     assert getter.get_pages("https://example.com/document", PAGE_SEARCH_PATTERN) == []
 
 
+def test_get_pages_handles_get_document_source_raising_http_error(monkeypatch):
+    getter = SimpleDomGetterMethod()
+
+    def fake_get_document_source(self, document_url):
+        raise HTTPError("failed")
+
+    monkeypatch.setattr(SimpleDomGetterMethod, "get_document_source", fake_get_document_source)
+
+    assert getter.get_pages("https://example.com/document", PAGE_SEARCH_PATTERN) == []
+
+
+def test_get_name_returns_empty_when_xpath_missing(monkeypatch):
+    getter = SimpleDomGetterMethod()
+
+    # return HTML without the requested xpath
+    monkeypatch.setattr(SimpleDomGetterMethod, "get_document_source", lambda self, url: "<html><body><div>no h1</div></body></html>")
+
+    assert getter.get_name("https://example.com/document", "//h1") == ""
+
+
 def test_extract_uuids_from_divs_with_id_pattern_collects_unique_values():
     getter = SimpleDomGetterMethod()
     soup = __import__("bs4").BeautifulSoup(PAGE_HTML, "html.parser")
@@ -74,3 +94,41 @@ def test_get_uuid_from_match_ignores_duplicates_and_non_matches():
 
     no_match = getter._get_uuid_from_match(result, "not-a-page-id", pattern)
     assert no_match == ["33333333-3333-3333-3333-333333333333"]
+
+
+def test_extract_uuids_returns_empty_when_soup_none():
+    getter = SimpleDomGetterMethod()
+
+    result = getter._extract_uuids_from_divs_with_id_pattern(None, PAGE_SEARCH_PATTERN)
+
+    assert result == []
+
+
+def test_extract_uuids_with_no_matches():
+    getter = SimpleDomGetterMethod()
+    soup = __import__("bs4").BeautifulSoup("<html><body><div id=\"no-match\"></div></body></html>", "html.parser")
+
+    result = getter._extract_uuids_from_divs_with_id_pattern(soup, PAGE_SEARCH_PATTERN)
+
+    assert result == []
+
+
+def test_extract_uuids_handles_duplicates_preserving_order():
+    getter = SimpleDomGetterMethod()
+    html = """
+    <html>
+      <body>
+        <div id="page-id-uuid:aaa11111-1111-1111-1111-111111111111"></div>
+        <div id="page-id-uuid:bbb22222-2222-2222-2222-222222222222"></div>
+        <div id="page-id-uuid:aaa11111-1111-1111-1111-111111111111"></div>
+      </body>
+    </html>
+    """
+    soup = __import__("bs4").BeautifulSoup(html, "html.parser")
+
+    result = getter._extract_uuids_from_divs_with_id_pattern(soup, PAGE_SEARCH_PATTERN)
+
+    assert result == [
+        "aaa11111-1111-1111-1111-111111111111",
+        "bbb22222-2222-2222-2222-222222222222",
+    ]

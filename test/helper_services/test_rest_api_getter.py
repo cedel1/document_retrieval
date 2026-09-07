@@ -1,6 +1,7 @@
 """Tests for the REST API getter helper."""
 
 import requests
+from requests import HTTPError
 
 from src.helper_services.rest_api_getter import RestApiGetterMethod
 from test.helper_services.fixtures import API_PAYLOAD, FakeResponse
@@ -50,3 +51,25 @@ def test_get_pages_returns_empty_list_when_request_fails(monkeypatch):
     monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
 
     assert getter.get_pages("https://example.com/document", "pages") == []
+
+
+def test_get_document_source_handles_request_exception(monkeypatch):
+    getter = RestApiGetterMethod("https://example.com/api")
+
+    def fake_get(*args, **kwargs):
+        raise requests.RequestException("network")
+
+    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
+
+    assert getter.get_document_source("https://example.com/document") is None
+
+
+def test_get_document_source_handles_non_200(monkeypatch):
+    getter = RestApiGetterMethod("https://example.com/api")
+
+    def fake_get(*args, **kwargs):
+        return FakeResponse(json_data=API_PAYLOAD, exc=HTTPError("bad status"))
+
+    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
+
+    assert getter.get_document_source("https://example.com/document") is None

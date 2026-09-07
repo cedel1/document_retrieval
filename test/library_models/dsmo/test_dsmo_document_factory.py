@@ -22,6 +22,7 @@ def test_dsmo_document_factory_from_uuid_builds_document_with_page_objects(monke
     document = DSMODocumentFactory.from_identifier(
         "doc-123",
         DOCUMENT_URL,
+        "",
         "https://example.com/detail",
         output_dir="tmp",
         page_uuids=["page-1"],

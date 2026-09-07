@@ -20,6 +20,7 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
     server_urls: list[str] = []
     server_type: Optional[BaseServerType] = None
     page_detail_url: str = ""
+    # document_name_pattern: Pattern
     library_name = "Library_Base"
 
     def __init__(self, document_url: Optional[str] = "") -> None:

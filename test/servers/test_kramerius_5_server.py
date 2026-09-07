@@ -100,3 +100,55 @@ def test_get_document_pages_raises_when_every_strategy_fails(monkeypatch):
 
     with pytest.raises(ValueError, match="Could not find pages for Kramerius 5 server"):
         server.get_document_pages(DOCUMENT_URL)
+
+
+def test_get_document_name_returns_value_when_helper_finds_it(monkeypatch):
+    server = Kramerius5ServerType()
+    server.document_page_methods = {"dom_selenium": None}
+
+    class NameGetter:
+        def get_name(self, document_url, xpath):
+            return "Found Title"
+
+    monkeypatch.setattr(server, "_get_class_name", lambda page_method: "NameGetter")
+    monkeypatch.setattr(server, "_get_class_from_name", lambda name: NameGetter)
+
+    assert server.get_document_name(DOCUMENT_URL) == "Found Title"
+
+
+def test_get_document_name_raises_when_no_helper_returns_name(monkeypatch):
+    server = Kramerius5ServerType()
+    server.document_page_methods = {"dom_selenium": None}
+
+    class EmptyNameGetter:
+        def get_name(self, document_url, xpath):
+            return ""
+
+    monkeypatch.setattr(server, "_get_class_name", lambda page_method: "EmptyNameGetter")
+    monkeypatch.setattr(server, "_get_class_from_name", lambda name: EmptyNameGetter)
+
+    with pytest.raises(ValueError, match="Could not find document name for Kramerius 5 server"):
+        server.get_document_name(DOCUMENT_URL)
+
+
+def test_get_document_name_continues_on_value_error_and_uses_next_method(monkeypatch):
+    server = Kramerius5ServerType()
+    server.document_page_methods = {"one": None, "two": None}
+
+    class RaisingGetter:
+        def get_name(self, document_url, xpath):
+            raise ValueError("fail")
+
+    class SuccessGetter:
+        def get_name(self, document_url, xpath):
+            return "Recovered Title"
+
+    classes = iter([RaisingGetter, SuccessGetter])
+
+    def fake_get_class(class_name):
+        return next(classes)
+
+    monkeypatch.setattr(server, "_get_class_name", lambda page_method: "X")
+    monkeypatch.setattr(server, "_get_class_from_name", fake_get_class)
+
+    assert server.get_document_name(DOCUMENT_URL) == "Recovered Title"
