@@ -75,8 +75,6 @@ class Kramerius5ServerType(BaseServerType):
             str: The name of the document, or an empty string if not found.
         """
         for page_method in self.document_page_methods:
-            # logger.info("Trying page method: %s with search attribute: %s", page_method, search_attribute)
-            # print(f"Trying page method: {page_method} with search attribute: {search_attribute}")
             # create a class from the page method key
             class_ = self._get_class_from_name(self._get_class_name(page_method))
             print(f"Class for name method: {page_method} with document_url: {document_url}")
