@@ -24,7 +24,9 @@ def test_check_dezoomify_rs_returns_true_when_binary_works(monkeypatch):
 
 
 def test_check_dezoomify_rs_returns_false_on_non_zero_exit(monkeypatch):
-    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr="bad"))
+    monkeypatch.setattr(
+        subprocess, "run", lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr="bad")
+    )
 
     assert DownloadService.check_dezoomify_rs("dezoomify-rs") is False
 
@@ -64,7 +66,9 @@ def test_random_delay_uses_uniform_delay_and_sleep(monkeypatch):
 def test_retrieve_dezoomified_image_returns_false_when_binary_missing(monkeypatch):
     calls = []
     monkeypatch.setattr(DownloadService, "check_dezoomify_rs", lambda path="dezoomify-rs": False)
-    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs)) or SimpleNamespace(returncode=0))
+    monkeypatch.setattr(
+        subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs)) or SimpleNamespace(returncode=0)
+    )
 
     assert DownloadService.retrieve_dezoomified_image("https://example.com/image", output_base="/tmp/out") is False
     assert calls == []
@@ -85,7 +89,9 @@ def test_retrieve_dezoomified_image_returns_false_on_subprocess_error(monkeypatc
 def test_retrieve_dezoomified_image_runs_dezoomify_with_args(monkeypatch):
     captured = {}
     monkeypatch.setattr(DownloadService, "check_dezoomify_rs", lambda path="dezoomify-rs": True)
-    monkeypatch.setattr(DownloadService, "random_delay", lambda *args, **kwargs: captured.setdefault("delay_called", True))
+    monkeypatch.setattr(
+        DownloadService, "random_delay", lambda *args, **kwargs: captured.setdefault("delay_called", True)
+    )
 
     def fake_run(command, **kwargs):
         captured["command"] = command
@@ -103,7 +109,14 @@ def test_retrieve_dezoomified_image_runs_dezoomify_with_args(monkeypatch):
 
     assert result is True
     assert captured["delay_called"] is True
-    assert captured["command"] == ["/opt/dezoomify-rs", "--largest", "--max-width", "4000", "https://example.com/image", "/tmp/out"]
+    assert captured["command"] == [
+        "/opt/dezoomify-rs",
+        "--largest",
+        "--max-width",
+        "4000",
+        "https://example.com/image",
+        "/tmp/out",
+    ]
     assert captured["kwargs"]["check"] is False
     assert captured["kwargs"]["timeout"] == 5 * 60
 

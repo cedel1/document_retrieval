@@ -8,7 +8,9 @@ from src.library_models.base.base_library import BaseLibrary
 class ConcreteLibrary(BaseLibrary):
     server_urls = ["https://example.com/"]
 
-    def preprocess_document_from_url(self, document_url: str, page_detail_url: str, output_dir: str = "output", page_uuids=None):
+    def preprocess_document_from_url(
+        self, document_url: str, page_detail_url: str, output_dir: str = "output", page_uuids=None
+    ):
         return {"source_url": document_url, "output_dir": output_dir, "page_uuids": page_uuids}
 
 

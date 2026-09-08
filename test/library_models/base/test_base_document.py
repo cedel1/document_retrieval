@@ -18,11 +18,13 @@ def test_base_document_initializes_pages_and_output_directory():
     page_one = DummyPage("page-1", "https://example.com/page-1", "https://example.com/detail", 1, "tmp")
     page_two = DummyPage("page-2", "https://example.com/page-2", "https://example.com/detail", 2, "tmp")
 
-    document = BaseDocument("doc-123", source_url="https://example.com/doc", output_dir="tmp", pages=[page_one, page_two])
+    document = BaseDocument(
+        "doc-123", source_url="https://example.com/doc", output_dir="tmp", pages=[page_one, page_two]
+    )
 
     assert document.identifier == "doc-123"
     assert document.source_url == "https://example.com/doc"
-    assert document.output_dir == Path("tmp/doc-123")
+    assert document.output_dir == Path("tmp")
     assert document.page_uuids == ["page-1", "page-2"]
     assert document.page_count == 2
     assert page_one.output_dir == document.output_dir
@@ -30,7 +32,7 @@ def test_base_document_initializes_pages_and_output_directory():
 
 def test_base_document_add_page_updates_directory_and_properties_path(tmp_path):
     page = DummyPage("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(tmp_path))
-    document = BaseDocument("doc-123", output_dir=str(tmp_path))
+    document = BaseDocument("doc-123", output_dir=str(tmp_path / "doc-123"))
 
     document.add_page(page)
 
@@ -39,12 +41,15 @@ def test_base_document_add_page_updates_directory_and_properties_path(tmp_path):
 
 
 def test_base_document_create_properties_file_writes_expected_content(tmp_path):
-    page = DummyPage("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(tmp_path))
-    document = BaseDocument("doc-123", output_dir=str(tmp_path), pages=[page])
+    doc_dir = tmp_path / "doc-123"
+    page = DummyPage("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(doc_dir))
+    document = BaseDocument("doc-123", output_dir=str(doc_dir), pages=[page])
 
-    document.create_properties_file(dezoomify_path="/tool/dezoomify-rs", dezoomify_args=["--largest", "--max-width", "4000"])
+    document.create_properties_file(
+        dezoomify_path="/tool/dezoomify-rs", dezoomify_args=["--largest", "--max-width", "4000"]
+    )
 
-    content = (tmp_path / "doc-123" / "properties.txt").read_text(encoding="utf-8")
+    content = (doc_dir / "properties.txt").read_text(encoding="utf-8")
     assert "Document_uuid: doc-123" in content
     assert "pages:" in content
     assert "    page-1" in content

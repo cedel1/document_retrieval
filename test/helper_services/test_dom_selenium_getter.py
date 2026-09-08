@@ -39,7 +39,9 @@ def test_get_pages_uses_selenium_html_and_passes_expected_attributes(monkeypatch
 
 def test_get_pages_returns_empty_list_when_no_matching_ids_are_present(monkeypatch):
     getter = DomSeleniumGetterMethod()
-    monkeypatch.setattr(getter, "_try_selenium_dom_request", lambda document_url: "<html><body><div id='other'></div></body></html>")
+    monkeypatch.setattr(
+        getter, "_try_selenium_dom_request", lambda document_url: "<html><body><div id='other'></div></body></html>"
+    )
 
     assert getter.get_pages("https://example.com/document", PAGE_SEARCH_PATTERN) == []
 
@@ -205,6 +207,7 @@ def test_try_selenium_dom_request_creates_driver_waits_and_quits(monkeypatch):
 
 def test_try_selenium_dom_request_handles_wait_timeout_and_returns_page_source(monkeypatch):
     """If WebDriverWait.until raises, method should proceed and return page source."""
+
     class FakeDriver:
         def __init__(self):
             self.page_source = "<html><body>RenderedTimeout</body></html>"
@@ -250,19 +253,19 @@ def test_try_selenium_dom_request_handles_wait_timeout_and_returns_page_source(m
         fake_driver.options = options
         return fake_driver
 
-    selenium_module = __import__('types').ModuleType("selenium")
-    webdriver_module = __import__('types').ModuleType("selenium.webdriver")
-    chrome_module = __import__('types').ModuleType("selenium.webdriver.chrome")
-    chrome_options_module = __import__('types').ModuleType("selenium.webdriver.chrome.options")
-    support_module = __import__('types').ModuleType("selenium.webdriver.support")
-    ui_module = __import__('types').ModuleType("selenium.webdriver.support.ui")
-    by_module = __import__('types').ModuleType("selenium.webdriver.common.by")
-    expected_module = __import__('types').ModuleType("selenium.webdriver.support.expected_conditions")
+    selenium_module = __import__("types").ModuleType("selenium")
+    webdriver_module = __import__("types").ModuleType("selenium.webdriver")
+    chrome_module = __import__("types").ModuleType("selenium.webdriver.chrome")
+    chrome_options_module = __import__("types").ModuleType("selenium.webdriver.chrome.options")
+    support_module = __import__("types").ModuleType("selenium.webdriver.support")
+    ui_module = __import__("types").ModuleType("selenium.webdriver.support.ui")
+    by_module = __import__("types").ModuleType("selenium.webdriver.common.by")
+    expected_module = __import__("types").ModuleType("selenium.webdriver.support.expected_conditions")
 
     chrome_options_module.Options = FakeOptions
     chrome_module.options = chrome_options_module
     webdriver_module.chrome = chrome_module
-    webdriver_module.common = __import__('types').SimpleNamespace(by=by_module)
+    webdriver_module.common = __import__("types").SimpleNamespace(by=by_module)
     support_module.ui = ui_module
     support_module.expected_conditions = expected_module
     ui_module.WebDriverWait = FakeWebDriverWait
@@ -272,6 +275,7 @@ def test_try_selenium_dom_request_handles_wait_timeout_and_returns_page_source(m
     webdriver_module.Chrome = fake_chrome
 
     import sys
+
     monkeypatch.setitem(sys.modules, "selenium", selenium_module)
     monkeypatch.setitem(sys.modules, "selenium.webdriver", webdriver_module)
     monkeypatch.setitem(sys.modules, "selenium.webdriver.chrome", chrome_module)
@@ -279,7 +283,9 @@ def test_try_selenium_dom_request_handles_wait_timeout_and_returns_page_source(m
     monkeypatch.setitem(sys.modules, "selenium.webdriver.support", support_module)
     monkeypatch.setitem(sys.modules, "selenium.webdriver.support.ui", ui_module)
     monkeypatch.setitem(sys.modules, "selenium.webdriver.support.expected_conditions", expected_module)
-    monkeypatch.setitem(sys.modules, "selenium.webdriver.common", __import__('types').ModuleType("selenium.webdriver.common"))
+    monkeypatch.setitem(
+        sys.modules, "selenium.webdriver.common", __import__("types").ModuleType("selenium.webdriver.common")
+    )
     monkeypatch.setitem(sys.modules, "selenium.webdriver.common.by", by_module)
 
     result = DomSeleniumGetterMethod()._try_selenium_dom_request("https://example.com/document")
@@ -289,6 +295,7 @@ def test_try_selenium_dom_request_handles_wait_timeout_and_returns_page_source(m
 
 def test_try_selenium_dom_request_returns_empty_when_driver_get_raises(monkeypatch):
     """If driver.get raises an exception, the method should catch and return empty string."""
+
     class FakeDriver:
         def __init__(self):
             self.page_source = "<html><body>ShouldNotBeReturned</body></html>"
@@ -312,19 +319,19 @@ def test_try_selenium_dom_request_returns_empty_when_driver_get_raises(monkeypat
     def fake_chrome(options=None):
         return FakeDriver()
 
-    selenium_module = __import__('types').ModuleType("selenium")
-    webdriver_module = __import__('types').ModuleType("selenium.webdriver")
-    chrome_module = __import__('types').ModuleType("selenium.webdriver.chrome")
-    chrome_options_module = __import__('types').ModuleType("selenium.webdriver.chrome.options")
-    support_module = __import__('types').ModuleType("selenium.webdriver.support")
-    ui_module = __import__('types').ModuleType("selenium.webdriver.support.ui")
-    by_module = __import__('types').ModuleType("selenium.webdriver.common.by")
-    expected_module = __import__('types').ModuleType("selenium.webdriver.support.expected_conditions")
+    selenium_module = __import__("types").ModuleType("selenium")
+    webdriver_module = __import__("types").ModuleType("selenium.webdriver")
+    chrome_module = __import__("types").ModuleType("selenium.webdriver.chrome")
+    chrome_options_module = __import__("types").ModuleType("selenium.webdriver.chrome.options")
+    support_module = __import__("types").ModuleType("selenium.webdriver.support")
+    ui_module = __import__("types").ModuleType("selenium.webdriver.support.ui")
+    by_module = __import__("types").ModuleType("selenium.webdriver.common.by")
+    expected_module = __import__("types").ModuleType("selenium.webdriver.support.expected_conditions")
 
     chrome_options_module.Options = FakeOptions
     chrome_module.options = chrome_options_module
     webdriver_module.chrome = chrome_module
-    webdriver_module.common = __import__('types').SimpleNamespace(by=by_module)
+    webdriver_module.common = __import__("types").SimpleNamespace(by=by_module)
     support_module.ui = ui_module
     support_module.expected_conditions = expected_module
     ui_module.WebDriverWait = lambda driver, timeout: None
@@ -334,6 +341,7 @@ def test_try_selenium_dom_request_returns_empty_when_driver_get_raises(monkeypat
     webdriver_module.Chrome = fake_chrome
 
     import sys
+
     monkeypatch.setitem(sys.modules, "selenium", selenium_module)
     monkeypatch.setitem(sys.modules, "selenium.webdriver", webdriver_module)
     monkeypatch.setitem(sys.modules, "selenium.webdriver.chrome", chrome_module)
@@ -341,7 +349,9 @@ def test_try_selenium_dom_request_returns_empty_when_driver_get_raises(monkeypat
     monkeypatch.setitem(sys.modules, "selenium.webdriver.support", support_module)
     monkeypatch.setitem(sys.modules, "selenium.webdriver.support.ui", ui_module)
     monkeypatch.setitem(sys.modules, "selenium.webdriver.support.expected_conditions", expected_module)
-    monkeypatch.setitem(sys.modules, "selenium.webdriver.common", __import__('types').ModuleType("selenium.webdriver.common"))
+    monkeypatch.setitem(
+        sys.modules, "selenium.webdriver.common", __import__("types").ModuleType("selenium.webdriver.common")
+    )
     monkeypatch.setitem(sys.modules, "selenium.webdriver.common.by", by_module)
 
     result = DomSeleniumGetterMethod()._try_selenium_dom_request("https://example.com/document")

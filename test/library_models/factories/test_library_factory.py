@@ -7,7 +7,9 @@ from src.library_models.factories.library_factory import LibraryFactory
 
 
 def test_library_factory_returns_matching_library_for_supported_url():
-    library = LibraryFactory.from_url("https://www.digitalniknihovna.cz/dsmo/view/uuid:11111111-1111-1111-1111-111111111111")
+    library = LibraryFactory.from_url(
+        "https://www.digitalniknihovna.cz/dsmo/view/uuid:11111111-1111-1111-1111-111111111111"
+    )
 
     assert isinstance(library, DSMOLibrary)
 

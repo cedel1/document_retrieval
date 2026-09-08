@@ -39,7 +39,7 @@ class BaseDocument(ABC):
         self.identifier = identifier
         self.source_url = source_url
         self.name = name
-        self.output_dir = Path(output_dir + "/" + self.identifier) if identifier else Path(output_dir)
+        self.output_dir = Path(output_dir)
         self.pages: List[BaseDocumentPage] = []
 
         if pages:

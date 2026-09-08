@@ -41,6 +41,8 @@ def test_dsmo_library_preprocess_document_from_url_passes_through_arguments(monk
         page_uuids=["page-1"],
     )
 
-    assert result == {"source_url": "https://www.digitalniknihovna.cz/dsmo/view/uuid:11111111-1111-1111-1111-111111111111"}
+    assert result == {
+        "source_url": "https://www.digitalniknihovna.cz/dsmo/view/uuid:11111111-1111-1111-1111-111111111111"
+    }
     assert captured["output_dir"] == "tmp/Library_DSMO"
     assert captured["page_uuids"] == ["page-1"]
