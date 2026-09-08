@@ -65,7 +65,9 @@ def test_get_name_returns_empty_when_xpath_missing(monkeypatch):
     getter = SimpleDomGetterMethod()
 
     # return HTML without the requested xpath
-    monkeypatch.setattr(SimpleDomGetterMethod, "get_document_source", lambda self, url: "<html><body><div>no h1</div></body></html>")
+    monkeypatch.setattr(
+        SimpleDomGetterMethod, "get_document_source", lambda self, url: "<html><body><div>no h1</div></body></html>"
+    )
 
     assert getter.get_name("https://example.com/document", "//h1") == ""
 
@@ -106,7 +108,7 @@ def test_extract_uuids_returns_empty_when_soup_none():
 
 def test_extract_uuids_with_no_matches():
     getter = SimpleDomGetterMethod()
-    soup = __import__("bs4").BeautifulSoup("<html><body><div id=\"no-match\"></div></body></html>", "html.parser")
+    soup = __import__("bs4").BeautifulSoup('<html><body><div id="no-match"></div></body></html>', "html.parser")
 
     result = getter._extract_uuids_from_divs_with_id_pattern(soup, PAGE_SEARCH_PATTERN)
 
