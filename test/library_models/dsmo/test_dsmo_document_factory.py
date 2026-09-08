@@ -17,7 +17,9 @@ def test_dsmo_document_factory_from_uuid_builds_document_with_page_objects(monke
         captured["args"] = (page_uuid, page_url, page_detail_url, index, output_dir)
         return DSMODocumentPage(page_uuid, page_url, page_detail_url, index, output_dir)
 
-    monkeypatch.setattr("src.library_models.dsmo.dsmo_document_factory.DSMODocumentPageFactory.from_uuid", fake_from_uuid)
+    monkeypatch.setattr(
+        "src.library_models.dsmo.dsmo_document_factory.DSMODocumentPageFactory.from_uuid", fake_from_uuid
+    )
 
     document = DSMODocumentFactory.from_identifier(
         "doc-123",
@@ -76,7 +78,9 @@ def test_dsmo_document_factory_from_url_uses_explicit_page_detail_url(monkeypatc
         captured["page_detail_url"] = page_detail_url
         return DSMODocumentPage(page_uuid, page_url, page_detail_url, index, output_dir)
 
-    monkeypatch.setattr("src.library_models.dsmo.dsmo_document_factory.DSMODocumentPageFactory.from_uuid", fake_from_uuid)
+    monkeypatch.setattr(
+        "src.library_models.dsmo.dsmo_document_factory.DSMODocumentPageFactory.from_uuid", fake_from_uuid
+    )
 
     DSMODocumentFactory.from_url(
         library,

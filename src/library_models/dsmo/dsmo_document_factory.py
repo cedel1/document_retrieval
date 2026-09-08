@@ -42,6 +42,12 @@ class DSMODocumentFactory(BaseDocumentFactory):
         return document_uuid
 
     @staticmethod
+    def _create_document_path(output_dir: str, document_uuid: str, document_name: str = "") -> str:
+        """Create the filename for a DSMO document."""
+        path = ((document_uuid + "_") if document_uuid else "") + document_name
+        return str(Path(output_dir + "/" + path[:255])) if path else str(Path(output_dir))
+
+    @staticmethod
     # pylint: disable-next=too-many-arguments, too-many-positional-arguments
     def from_identifier(
         document_uuid: str,
@@ -71,7 +77,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
             A DSMODocument instance containing page model objects matching the
             provided page UUIDs.
         """
-        document_output_dir = str(Path(output_dir + "/" + document_uuid)) if document_uuid else str(Path(output_dir))
+        document_output_dir = DSMODocumentFactory._create_document_path(output_dir, document_uuid, name)
         pages = []
         for index, page_uuid in enumerate(page_uuids or [], 1):
             pages.append(
@@ -83,7 +89,9 @@ class DSMODocumentFactory(BaseDocumentFactory):
                     document_output_dir,
                 )
             )
-        return DSMODocument(document_uuid, source_url=source_url, name=name, output_dir=output_dir, pages=pages)
+        return DSMODocument(
+            document_uuid, source_url=source_url, name=name, output_dir=document_output_dir, pages=pages
+        )
 
     @staticmethod
     def from_url(
