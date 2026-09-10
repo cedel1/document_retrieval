@@ -3,6 +3,8 @@
 import sys
 import types
 
+import pytest
+
 from src.helper_services.dom_selenium_getter import DomSeleniumGetterMethod
 from test.helper_services.fixtures import PAGE_HTML, PAGE_SEARCH_PATTERN
 
@@ -357,3 +359,15 @@ def test_try_selenium_dom_request_returns_empty_when_driver_get_raises(monkeypat
     result = DomSeleniumGetterMethod()._try_selenium_dom_request("https://example.com/document")
 
     assert result == ""
+
+
+def test_setup_selenium_options_behavior_depends_on_environment():
+    """If selenium is available, _setup_selenium_options should return an options object
+    with add_argument method. If selenium is missing, it should raise RuntimeError.
+    """
+    try:
+        opts = DomSeleniumGetterMethod._setup_selenium_options()
+        # Options should support add_argument
+        assert hasattr(opts, "add_argument")
+    except RuntimeError:
+        pytest.skip("Selenium not available in this environment")

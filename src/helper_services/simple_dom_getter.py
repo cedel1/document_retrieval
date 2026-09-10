@@ -60,21 +60,21 @@ class SimpleDomGetterMethod(BaseGetterMethod):
 
         return []
 
-    def get_name(self, document_url: str, xpath: str) -> str:
-        """Get the name of a document.
+    def get_title(self, document_url: str, xpath: str) -> str:
+        """Get the title of a document.
 
         Args:
             document_url: URL of the document page to fetch and parse.
-            xpath: The XPath expression to locate the document name in the DOM.
+            xpath: The XPath expression to locate the document title in the DOM.
 
         Returns:
-            str: The name of the document, or an empty string if not found.
+            str: The title of the document, or an empty string if not found.
         """
         try:
             dom = etree.HTML(str(self.get_document_source(document_url)))
             return dom.xpath(xpath)[0].text.strip()
         except (HTTPError, IndexError) as e:
-            logger.exception("Failed to retrieve document name: %s", e)
+            logger.exception("Failed to retrieve document title: %s", e)
 
         return ""
 
@@ -119,3 +119,25 @@ class SimpleDomGetterMethod(BaseGetterMethod):
                 page_uuids.append(page_uuid)
                 print(f"Found page UUID: {page_uuid}")
         return page_uuids
+
+    def get_subtitle(self, document_url: str, xpath: str) -> str:
+        """Get the subtitle of a document.
+
+        Args:
+            document_url: URL of the document whose subtitle is requested.
+            xpath: The XPath expression to locate the document subtitle in the DOM.
+
+        Returns:
+            str: The subtitle of the document, or an empty string if not found.
+        """
+        try:
+            return " ".join(
+                [
+                    str(line.text or "").strip()
+                    for line in etree.HTML(str(self.get_document_source(document_url))).xpath(xpath)
+                ]
+            ).strip()
+        except (HTTPError, IndexError) as e:
+            logger.exception("Failed to retrieve document subtitle: %s", e)
+
+        return ""

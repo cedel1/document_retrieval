@@ -16,11 +16,13 @@ logger = logging.getLogger(__name__)
 class BaseDocument(ABC):
     """Abstract base document owning all pages for a given source document."""
 
+    # pylint: disable-next=too-many-arguments, too-many-positional-arguments
     def __init__(
         self,
         identifier: str = "",
         source_url: Optional[str] = None,
-        name: Optional[str] = None,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = "",
         output_dir: str = "output",
         pages: Optional[Sequence[BaseDocumentPage]] = None,
     ) -> None:
@@ -29,7 +31,7 @@ class BaseDocument(ABC):
         Args:
             identifier: Unique identifier for the document.
             source_url: Optional URL pointing to the source document.
-            name: Optional name for the document.
+            title: Optional title for the document.
             output_dir: Directory used to store generated metadata and page files.
             pages: Optional sequence of pages to attach immediately.
 
@@ -38,7 +40,8 @@ class BaseDocument(ABC):
         """
         self.identifier = identifier
         self.source_url = source_url
-        self.name = name
+        self.title = title
+        self.subtitle = subtitle
         self.output_dir = Path(output_dir)
         self.pages: List[BaseDocumentPage] = []
 
@@ -116,7 +119,8 @@ class BaseDocument(ABC):
             with self.properties_path.open("w", encoding="utf-8") as properties_file:
                 properties_file.write(f"Source URL: {self.source_url}\n")
                 properties_file.write(f"Document_uuid: {self.identifier}\n")
-                properties_file.write(f"Name: {self.name}\n")
+                properties_file.write(f"Title: {self.title}\n")
+                properties_file.write(f"Subtitle: {self.subtitle}\n")
                 properties_file.write("pages:\n")
                 for page_uuid in self.page_uuids:
                     properties_file.write(f"    {page_uuid}\n")

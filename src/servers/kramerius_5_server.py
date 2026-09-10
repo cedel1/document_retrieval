@@ -5,6 +5,8 @@ import re
 
 from .base_server import BaseServerType
 
+MSG_ERROR_IN_METHOD = "Error in %s method: %s"
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,9 +20,13 @@ class Kramerius5ServerType(BaseServerType):
     document_page_methods: dict[str, str | dict] = {
         "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
     }
-    document_name_xpath: str = (
+    document_title_xpath: str = (
         "//html/body/app-root/main[contains(@class, 'app-wrapper')]/app-book/div[contains(@class, 'app-book-wrapper')]"
         "/app-metadata[contains(@class, 'app-book-metadata')]/div/div[contains(@class, 'app-metadata-content')]/h1"
+    )
+    document_subtitle_xpath: str = (
+        "//html/body/app-root/main[contains(@class, 'app-wrapper')]/app-book/div[contains(@class, 'app-book-wrapper')]"
+        "/app-metadata[contains(@class, 'app-book-metadata')]/div/div[contains(@class, 'app-metadata-content')]/h2"
     )
 
     def get_document_pages(self, document_url: str) -> list[str]:
@@ -56,7 +62,7 @@ class Kramerius5ServerType(BaseServerType):
             except ValueError as e:
                 # if the class raises a ValueError, log the error and continue to the next method
                 # pylint: disable-next=logging-not-lazy,consider-using-f-string
-                logger.exception("Error in %s method: %s" % (page_method, e))
+                logger.exception(MSG_ERROR_IN_METHOD % (page_method, e))
                 continue
             # if the class returns a valid list of document pages, return that list and stop iterating through the keys
             if page_urls:
@@ -65,14 +71,14 @@ class Kramerius5ServerType(BaseServerType):
         # if no valid document page methods were found, raise an error
         raise ValueError("Could not find pages for Kramerius 5 server.")
 
-    def get_document_name(self, document_url: str) -> str:
-        """Get the name of a document.
+    def get_document_title(self, document_url: str) -> str:
+        """Get the title of a document.
 
         Args:
-            document_url: URL of the document whose name is requested.
+            document_url: URL of the document whose title is requested.
 
         Returns:
-            str: The name of the document, or an empty string if not found.
+            str: The title of the document, or an empty string if not found.
         """
         for page_method in self.document_page_methods:
             # create a class from the page method key
@@ -80,11 +86,35 @@ class Kramerius5ServerType(BaseServerType):
             print(f"Class for name method: {page_method} with document_url: {document_url}")
             logger.debug("Class for name method %s: %s", page_method, class_)
             try:
-                document_name = class_().get_name(document_url, self.document_name_xpath)
+                document_title = class_().get_title(document_url, self.document_title_xpath)
             except ValueError as e:
-                logger.exception("Error in %s method: %s", page_method, e)
+                logger.exception(MSG_ERROR_IN_METHOD , page_method, e)
                 continue
-            if document_name:
-                return document_name
+            if document_title:
+                return document_title
 
-        raise ValueError("Could not find document name for Kramerius 5 server.")
+        raise ValueError("Could not find document title for Kramerius 5 server.")
+
+    def get_document_subtitle(self, document_url: str) -> str:
+        """Get the subtitle of a document.
+
+        Args:
+            document_url: URL of the document whose subtitle is requested.
+
+        Returns:
+            str: The subtitle of the document, or an empty string if not found.
+        """
+        for page_method in self.document_page_methods:
+            # create a class from the page method key
+            class_ = self._get_class_from_name(self._get_class_name(page_method))
+            print(f"Class for name method: {page_method} with document_url: {document_url}")
+            logger.debug("Class for name method %s: %s", page_method, class_)
+            try:
+                document_subtitle = class_().get_subtitle(document_url, self.document_subtitle_xpath)
+            except ValueError as e:
+                logger.exception(MSG_ERROR_IN_METHOD , page_method, e)
+                continue
+            if document_subtitle:
+                return document_subtitle
+
+        raise ValueError("Could not find document subtitle for Kramerius 5 server.")

@@ -69,7 +69,7 @@ def test_get_name_returns_empty_when_xpath_missing(monkeypatch):
         SimpleDomGetterMethod, "get_document_source", lambda self, url: "<html><body><div>no h1</div></body></html>"
     )
 
-    assert getter.get_name("https://example.com/document", "//h1") == ""
+    assert getter.get_title("https://example.com/document", "//h1") == ""
 
 
 def test_extract_uuids_from_divs_with_id_pattern_collects_unique_values():

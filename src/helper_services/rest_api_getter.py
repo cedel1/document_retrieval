@@ -56,18 +56,34 @@ class RestApiGetterMethod(BaseGetterMethod):
             print(f"Error fetching pages from REST API: {e}")
             return []
 
-    def get_name(self, document_url: str, xpath: str) -> str:
-        """Get the name of a document.
+    def get_title(self, document_url: str, xpath: str) -> str:
+        """Get the title of a document.
 
         Args:
-            document_url: URL of the document whose name is requested.
-            xpath: The XPath expression to locate the document name in the API response.
+            document_url: URL of the document whose title is requested.
+            xpath: The XPath expression to locate the document title in the API response.
 
         Returns:
-            str: The name of the document, or an empty string if not found.
+            str: The title of the document, or an empty string if not found.
         """
         try:
-            return self.get_document_source(document_url).json().get("name", "")
+            return self.get_document_source(document_url).json().get("title", "")
         except (requests.RequestException, ValueError, AttributeError) as e:
-            print(f"Error fetching document name from REST API: {e}")
+            print(f"Error fetching document title from REST API: {e}")
+            return ""
+
+    def get_subtitle(self, document_url: str, xpath: str) -> str:
+        """Get the subtitle of a document.
+
+        Args:
+            document_url: URL of the document whose subtitle is requested.
+            xpath: The XPath expression to locate the document subtitle in the API response.
+
+        Returns:
+            str: The subtitle of the document, or an empty string if not found.
+        """
+        try:
+            return self.get_document_source(document_url).json().get("subtitle", "")
+        except (requests.RequestException, ValueError, AttributeError) as e:
+            print(f"Error fetching document subtitle from REST API: {e}")
             return ""
