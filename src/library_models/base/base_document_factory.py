@@ -18,7 +18,8 @@ class BaseDocumentFactory(ABC):
     def from_identifier(
         document_uuid: str,
         source_url: str,
-        name: str,
+        title: str,
+        subtitle: str,
         page_detail_url: str,
         output_dir: str = "output",
         page_uuids: Optional[Sequence[str]] = None,
@@ -28,7 +29,8 @@ class BaseDocumentFactory(ABC):
         Args:
             document_uuid: UUID of the document to create.
             source_url: URL used to identify the source document.
-            name: The name of the document.
+            title: The title of the document.
+            subtitle: The subtitle of the document.
             page_detail_url: The detail URL for the document.
             output_dir: Directory used to store generated document artifacts.
             page_uuids: Optional page identifiers to attach immediately.

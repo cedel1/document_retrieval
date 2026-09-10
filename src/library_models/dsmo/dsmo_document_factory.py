@@ -42,9 +42,9 @@ class DSMODocumentFactory(BaseDocumentFactory):
         return document_uuid
 
     @staticmethod
-    def _create_document_path(output_dir: str, document_uuid: str, document_name: str = "") -> str:
+    def _create_document_path(output_dir: str, document_uuid: str, document_title: str = "") -> str:
         """Create the filename for a DSMO document."""
-        path = ((document_uuid + "_") if document_uuid else "") + document_name
+        path = ((document_uuid + "_") if document_uuid else "") + document_title
         return str(Path(output_dir + "/" + path[:255])) if path else str(Path(output_dir))
 
     @staticmethod
@@ -52,7 +52,8 @@ class DSMODocumentFactory(BaseDocumentFactory):
     def from_identifier(
         document_uuid: str,
         source_url: str,
-        name: str,
+        title: str,
+        subtitle: str,
         page_detail_url: str,
         output_dir: str = "output",
         page_uuids: Optional[Sequence[str]] = None,
@@ -65,7 +66,8 @@ class DSMODocumentFactory(BaseDocumentFactory):
         Args:
             document_uuid: The UUID of the document to construct.
             source_url: The original document URL; used to generate per-page URLs.
-            name: The name of the document.
+            title: The title of the document.
+            subtitle: The subtitle of the document.
             page_detail_url: The detail URL for the document.
             output_dir: Directory where the document and page outputs should be
                 written.
@@ -77,7 +79,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
             A DSMODocument instance containing page model objects matching the
             provided page UUIDs.
         """
-        document_output_dir = DSMODocumentFactory._create_document_path(output_dir, document_uuid, name)
+        document_output_dir = DSMODocumentFactory._create_document_path(output_dir, document_uuid, title)
         pages = []
         for index, page_uuid in enumerate(page_uuids or [], 1):
             pages.append(
@@ -90,7 +92,12 @@ class DSMODocumentFactory(BaseDocumentFactory):
                 )
             )
         return DSMODocument(
-            document_uuid, source_url=source_url, name=name, output_dir=document_output_dir, pages=pages
+            document_uuid,
+            source_url=source_url,
+            title=title,
+            subtitle=subtitle,
+            output_dir=document_output_dir,
+            pages=pages,
         )
 
     @staticmethod
@@ -123,16 +130,21 @@ class DSMODocumentFactory(BaseDocumentFactory):
         if page_uuids is None:
             page_uuids = library.server_type.get_document_pages(source_url)
         try:
-            name = library.server_type.get_document_name(source_url)
+            title = library.server_type.get_document_title(source_url)
         except ValueError:
-            # If the document name cannot be determined, continue with an
-            # empty name — page discovery and construction should still work.
-            name = ""
+            # If the document title cannot be determined, continue with an
+            # empty title — page discovery and construction should still work.
+            title = ""
+        try:
+            subtitle = library.server_type.get_document_subtitle(source_url)
+        except ValueError:
+            subtitle = ""
 
         return DSMODocumentFactory.from_identifier(
             document_uuid,
             source_url,
-            name,
+            title,
+            subtitle,
             page_detail_url,
             output_dir=output_dir,
             page_uuids=page_uuids,
