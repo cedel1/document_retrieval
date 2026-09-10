@@ -6,6 +6,8 @@ import string
 from abc import ABC, abstractmethod
 from re import Pattern
 
+IMPLEMENT_IN_SUBCLASSES = "This method must be implemented in a subclass."
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,8 +29,8 @@ class BaseServerType(ABC):
         # "simple_dom": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
         # "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
     }
-    document_name_pattern: str
-    document_properties_file: str = ""
+    document_title_xpath: str
+    document_subtitle_xpath: str
 
     def __str__(self) -> str:
         """Return a readable identifier for the current server type.
@@ -86,3 +88,13 @@ class BaseServerType(ABC):
         Raises:
             ValueError: If no valid document page methods are found for the current server.
         """
+
+    @abstractmethod
+    def get_document_title(self, document_url: str) -> str:
+        """Get the document title for the current server."""
+        raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)
+
+    @abstractmethod
+    def get_document_subtitle(self, document_url: str) -> str:
+        """Get the document subtitle for the current server."""
+        raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)

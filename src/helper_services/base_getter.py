@@ -52,14 +52,27 @@ class BaseGetterMethod(ABC):
         raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)
 
     @abstractmethod
-    def get_name(self, document_url: str, xpath: str) -> str:
-        """Get the name of a document.
+    def get_title(self, document_url: str, xpath: str) -> str:
+        """Get the title of a document.
 
         Args:
-            document_url: URL of the document whose name is requested.
-            xpath: The XPath expression to locate the document name in the DOM.
+            document_url: URL of the document whose title is requested.
+            xpath: The XPath expression to locate the document title in the DOM.
 
         Returns:
-            str: The name of the document, or an empty string if not found.
+            str: The title of the document, or an empty string if not found.
+        """
+        raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)
+
+    @abstractmethod
+    def get_subtitle(self, document_url: str, xpath: str) -> str:
+        """Get the subtitle of a document.
+
+        Args:
+            document_url: URL of the document whose subtitle is requested.
+            xpath: The XPath expression to locate the document subtitle in the DOM.
+
+        Returns:
+            str: The subtitle of the document, or an empty string if not found.
         """
         raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)

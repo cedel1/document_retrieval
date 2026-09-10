@@ -7,6 +7,14 @@ from src.helper_services.rest_api_getter import RestApiGetterMethod
 from test.helper_services.fixtures import API_PAYLOAD, FakeResponse
 
 
+class RaiseResp:
+    def raise_for_status(self):
+        raise requests.HTTPError("bad status")
+
+    def json(self):
+        return {}
+
+
 def test_get_pages_calls_api_with_expected_parameters_and_returns_payload(monkeypatch):
     getter = RestApiGetterMethod("https://example.com/api")
     captured = {}
@@ -73,3 +81,29 @@ def test_get_document_source_handles_non_200(monkeypatch):
     monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
 
     assert getter.get_document_source("https://example.com/document") is None
+
+
+def test_get_document_source_handles_raise_for_status(monkeypatch):
+    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", lambda *a, **k: RaiseResp())
+
+    inst = RestApiGetterMethod("http://api")
+    assert inst.get_document_source("/doc") is None
+
+
+def test_get_pages_handles_none_document_source(monkeypatch):
+    monkeypatch.setattr(RestApiGetterMethod, "get_document_source", lambda self, url: None)
+
+    inst = RestApiGetterMethod("http://api")
+    assert inst.get_pages("/doc", "pages") == []
+
+
+def test_get_title_handles_json_error(monkeypatch):
+    class BadResp:
+        def json(self):
+            raise ValueError("bad json")
+
+    monkeypatch.setattr(RestApiGetterMethod, "get_document_source", lambda self, url: BadResp())
+
+    inst = RestApiGetterMethod("http://api")
+    assert inst.get_title("/doc", "//h1") == ""
+    assert inst.get_subtitle("/doc", "//h1") == ""

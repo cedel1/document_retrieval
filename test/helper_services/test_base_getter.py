@@ -18,7 +18,10 @@ def test_concrete_subclass_can_implement_get_pages():
         def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
             return [document_url, str(search_parameter)]
 
-        def get_name(self, document_url: str, xpath: str) -> str:
+        def get_title(self, document_url: str, xpath: str) -> str:
+            return ""
+
+        def get_subtitle(self, document_url: str, xpath: str) -> str:
             return ""
 
     instance = DummyGetter()
@@ -39,4 +42,4 @@ def test_abstract_get_document_source_and_get_name_raise_not_implemented():
         BaseGetterMethod.get_document_source(None, "https://example.com")
 
     with pytest.raises(NotImplementedError, match="This method should be implemented in subclasses"):
-        BaseGetterMethod.get_name(None, "https://example.com", "//h1")
+        BaseGetterMethod.get_title(None, "https://example.com", "//h1")

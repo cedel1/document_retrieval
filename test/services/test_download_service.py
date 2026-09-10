@@ -3,8 +3,6 @@
 import subprocess
 from types import SimpleNamespace
 
-import pytest
-
 from src.services.download_service import DownloadService
 
 

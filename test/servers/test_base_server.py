@@ -12,6 +12,12 @@ class ExampleServerType(BaseServerType):
     def get_document_pages(self, document_url: str) -> list[str]:
         return [document_url]
 
+    def get_document_title(self, document_url: str) -> str:
+        return "Example Document"
+
+    def get_document_subtitle(self, document_url: str) -> str:
+        return "Example Document Subtitle"
+
 
 def test_base_server_str_includes_server_type_and_version():
     assert str(ExampleServerType()) == "example_3"
