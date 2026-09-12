@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import urllib.parse
 from pathlib import Path
+from socketserver import BaseServer
 from typing import Optional, Sequence
 
 from src.library_models.base.base_document import BaseDocument
@@ -101,8 +102,10 @@ class DSMODocumentFactory(BaseDocumentFactory):
         )
 
     @staticmethod
+    # pylint: disable-next=too-many-arguments, too-many-positional-arguments
     def from_url(
         library: BaseLibrary,
+        server_instance: BaseServer,
         source_url: str,
         page_detail_url: str,
         output_dir: str = "output",
@@ -117,6 +120,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
 
         Args:
             library: The library instance that the document belongs to.
+            server_instance: The server instance that should be used for document retrieval.
             source_url: The full URL that identifies the DSMO document.
             page_detail_url: The detail URL for the document.
             output_dir: Directory where outputs will be written.
@@ -128,15 +132,14 @@ class DSMODocumentFactory(BaseDocumentFactory):
         """
         document_uuid = DSMODocumentFactory._extract_document_uuid_from_url(source_url, library)
         if page_uuids is None:
-            page_uuids = library.server_type.get_document_pages(source_url)
+            page_uuids = server_instance.get_document_pages(source_url)
+
         try:
-            title = library.server_type.get_document_title(source_url)
+            title = server_instance.get_document_title(source_url)
         except ValueError:
-            # If the document title cannot be determined, continue with an
-            # empty title — page discovery and construction should still work.
             title = ""
         try:
-            subtitle = library.server_type.get_document_subtitle(source_url)
+            subtitle = server_instance.get_document_subtitle(source_url)
         except ValueError:
             subtitle = ""
 

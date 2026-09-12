@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from socketserver import BaseServer
 from typing import Optional, Sequence
 
 from src.library_models.base.base_document import BaseDocument
@@ -41,8 +42,10 @@ class BaseDocumentFactory(ABC):
 
     @staticmethod
     @abstractmethod
+    # pylint: disable-next=too-many-arguments, too-many-positional-arguments
     def from_url(
         library: BaseLibrary,
+        server_instance: BaseServer,
         source_url: str,
         page_detail_url: str,
         output_dir: str = "output",
@@ -52,6 +55,7 @@ class BaseDocumentFactory(ABC):
 
         Args:
             library: The library instance that the document belongs to.
+            server_instance: The server instance to use for document retrieval.
             source_url: URL that identifies the document.
             page_detail_url: The detail URL for the document.
             output_dir: Directory used to store generated document artifacts.

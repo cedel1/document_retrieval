@@ -2,10 +2,12 @@
 
 import logging
 import re
+from typing import Any
 
 from .base_server import BaseServerType
 
 MSG_ERROR_IN_METHOD = "Error in %s method: %s"
+MSD_SWITCHING_TO_NEXT_METHOD = "Switching to next method"
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,14 @@ class Kramerius5ServerType(BaseServerType):
         Returns:
             list[str]: A list of strings representing the available document pages.
         """
+        if self.active_getter_instance:
+            try:
+                return self.active_getter_instance.get_pages(document_url, self.document_title_xpath)
+            except ValueError as e:
+                logger.exception("Saved active logger did not find pages for %s: %s", document_url, e)
+                logger.debug(MSD_SWITCHING_TO_NEXT_METHOD)
+                self.active_getter_instance = None
+
         page_urls = None
         for page_method, search_attribute in self.document_page_methods.items():
             logger.info("Trying page method: %s with search attribute: %s", page_method, search_attribute)
@@ -56,13 +66,15 @@ class Kramerius5ServerType(BaseServerType):
                     document_url,
                     search_attribute,
                 )
-                page_urls = class_().get_pages(document_url, search_attribute)
+                self.active_getter_instance = class_()
+                page_urls = self.active_getter_instance.get_pages(document_url, search_attribute)
                 # pylint: disable-next=logging-not-lazy,consider-using-f-string
                 logger.debug("Page URLs found: %s" % page_urls)
             except ValueError as e:
                 # if the class raises a ValueError, log the error and continue to the next method
                 # pylint: disable-next=logging-not-lazy,consider-using-f-string
                 logger.exception(MSG_ERROR_IN_METHOD % (page_method, e))
+                self.active_getter_instance = None  # clear it out so it is not reused later
                 continue
             # if the class returns a valid list of document pages, return that list and stop iterating through the keys
             if page_urls:
@@ -80,20 +92,11 @@ class Kramerius5ServerType(BaseServerType):
         Returns:
             str: The title of the document, or an empty string if not found.
         """
-        for page_method in self.document_page_methods:
-            # create a class from the page method key
-            class_ = self._get_class_from_name(self._get_class_name(page_method))
-            print(f"Class for name method: {page_method} with document_url: {document_url}")
-            logger.debug("Class for name method %s: %s", page_method, class_)
-            try:
-                document_title = class_().get_title(document_url, self.document_title_xpath)
-            except ValueError as e:
-                logger.exception(MSG_ERROR_IN_METHOD , page_method, e)
-                continue
-            if document_title:
-                return document_title
-
-        raise ValueError("Could not find document title for Kramerius 5 server.")
+        try:
+            return self._get_document_partial_information(document_url, "get_title", [self.document_title_xpath])
+        except ValueError as e:
+            logger.exception("Error occurred while fetching document title for %s: %s", document_url, e)
+        return ""
 
     def get_document_subtitle(self, document_url: str) -> str:
         """Get the subtitle of a document.
@@ -104,17 +107,49 @@ class Kramerius5ServerType(BaseServerType):
         Returns:
             str: The subtitle of the document, or an empty string if not found.
         """
+        try:
+            return self._get_document_partial_information(document_url, "get_subtitle", [self.document_subtitle_xpath])
+        except ValueError as e:
+            logger.exception("Error occurred while fetching document subtitle for %s: %s", document_url, e)
+        return ""
+
+    def _get_document_partial_information(
+        self, document_url: str, getter_method_name: str, getter_method_parameters: list[Any]
+    ) -> str:
+        """Get the partial information from document.
+
+        Args:
+            document_url: URL of the document whose information is requested.
+            getter_method_name: The name of the method to use for retrieving the information.
+
+        Returns:
+            str: The requested information from the document, or an empty string if not found.
+        """
+        if self.active_getter_instance:
+            try:
+                if method_to_use := getattr(self.active_getter_instance, getter_method_name):
+                    return method_to_use(document_url, *getter_method_parameters)
+            except ValueError as e:
+                logger.exception("Saved active logger did not find subtitle for %s: %s", document_url, e)
+                logger.debug(MSD_SWITCHING_TO_NEXT_METHOD)
+                self.active_getter_instance = None
+                # We could remove the failed getter from the list of getters to try here, but to be on the safe side,
+                # don't do that.
+
         for page_method in self.document_page_methods:
             # create a class from the page method key
-            class_ = self._get_class_from_name(self._get_class_name(page_method))
+            getter_class = self._get_class_from_name(self._get_class_name(page_method))
+            method_to_use = getattr(getter_class(), getter_method_name)
             print(f"Class for name method: {page_method} with document_url: {document_url}")
-            logger.debug("Class for name method %s: %s", page_method, class_)
+            logger.debug("Class for name method %s: %s", page_method, getter_class)
             try:
-                document_subtitle = class_().get_subtitle(document_url, self.document_subtitle_xpath)
+                method_result = method_to_use(document_url, *getter_method_parameters)
             except ValueError as e:
-                logger.exception(MSG_ERROR_IN_METHOD , page_method, e)
+                logger.exception(MSG_ERROR_IN_METHOD, page_method, e)
                 continue
-            if document_subtitle:
-                return document_subtitle
+            if method_result:
+                return method_result
 
-        raise ValueError("Could not find document subtitle for Kramerius 5 server.")
+        raise ValueError(
+            f"Could not find document information for Kramerius 5 server using method {getter_method_name}."
+        )
