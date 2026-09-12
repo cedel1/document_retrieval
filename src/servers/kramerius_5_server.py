@@ -54,7 +54,6 @@ class Kramerius5ServerType(BaseServerType):
         page_urls = None
         for page_method, search_attribute in self.document_page_methods.items():
             logger.info("Trying page method: %s with search attribute: %s", page_method, search_attribute)
-            print(f"Trying page method: {page_method} with search attribute: {search_attribute}")
             # create a class from the page method key
             class_ = self._get_class_from_name(self._get_class_name(page_method))
             logger.debug("Class for page method %s: %s", page_method, class_)
@@ -116,7 +115,7 @@ class Kramerius5ServerType(BaseServerType):
     def _get_document_partial_information(
         self, document_url: str, getter_method_name: str, getter_method_parameters: list[Any]
     ) -> str:
-        """Get the partial information from document.
+        """Get partial document information, reusing the active getter when possible.
 
         Args:
             document_url: URL of the document whose information is requested.
@@ -124,6 +123,13 @@ class Kramerius5ServerType(BaseServerType):
 
         Returns:
             str: The requested information from the document, or an empty string if not found.
+
+        Notes:
+            ``active_getter_instance`` is a per-context cache. The cached
+            getter is tried first; if it raises ``ValueError``, it is
+            discarded and the configured getter methods are tried in order.
+            The cache is valid only within the server's context-manager
+            lifetime and is reset by ``BaseServerType.__exit__``.
         """
         if self.active_getter_instance:
             try:
@@ -140,7 +146,6 @@ class Kramerius5ServerType(BaseServerType):
             # create a class from the page method key
             getter_class = self._get_class_from_name(self._get_class_name(page_method))
             method_to_use = getattr(getter_class(), getter_method_name)
-            print(f"Class for name method: {page_method} with document_url: {document_url}")
             logger.debug("Class for name method %s: %s", page_method, getter_class)
             try:
                 method_result = method_to_use(document_url, *getter_method_parameters)
