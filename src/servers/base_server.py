@@ -33,6 +33,13 @@ class BaseServerType(ABC):
     document_subtitle_xpath: str
 
     def __init__(self):
+        """Initialize the server with no cached getter.
+
+        ``active_getter_instance`` caches the getter selected during the
+        current context-manager lifetime. It starts as ``None`` and is
+        cleared by ``__exit__``; callers must not rely on it after leaving a
+        ``with`` block.
+        """
         self.active_getter_instance = None  # we always start with empty getter
 
     def __enter__(self):
