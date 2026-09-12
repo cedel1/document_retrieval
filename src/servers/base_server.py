@@ -32,6 +32,15 @@ class BaseServerType(ABC):
     document_title_xpath: str
     document_subtitle_xpath: str
 
+    def __init__(self):
+        self.active_getter_instance = None  # we always start with empty getter
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.active_getter_instance = None
+
     def __str__(self) -> str:
         """Return a readable identifier for the current server type.
 

@@ -17,7 +17,7 @@ class DSMOLibrary(BaseLibrary):
     """Concrete DSMO library/server that a specific document is hosted on."""
 
     server_urls: list[str] = ["https://www.digitalniknihovna.cz/dsmo/", "https://digitalnistudovna.army.cz/"]
-    server_type: BaseServerType = Kramerius5ServerType()  # NOSONAR  # subclass of BaseServerType
+    server_type: BaseServerType = Kramerius5ServerType  # NOSONAR  # subclass of BaseServerType
     page_detail_url: str = "https://digitalnistudovna.army.cz/"
     library_name = "Library_DSMO"
 
@@ -56,10 +56,13 @@ class DSMOLibrary(BaseLibrary):
             ValueError: If the document URL does not belong to this library.
         """
         output_path = str(Path(output_dir + "/" + self.library_name))
-        return DSMODocumentFactory.from_url(
-            library=self,
-            source_url=document_url,
-            page_detail_url=page_detail_url,
-            output_dir=output_path,
-            page_uuids=page_uuids,
-        )
+        with DSMOLibrary.server_type() as server_instance:
+            document = DSMODocumentFactory.from_url(
+                library=self,
+                server_instance=server_instance,
+                source_url=document_url,
+                page_detail_url=page_detail_url,
+                output_dir=output_path,
+                page_uuids=page_uuids,
+            )
+            return document
