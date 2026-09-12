@@ -54,12 +54,15 @@ def test_dsmo_document_factory_extract_document_uuid_from_url_raises_when_missin
 
 def test_dsmo_document_factory_from_url_discovers_pages_when_not_provided(monkeypatch):
     library = SimpleNamespace()
-    library.server_type = Kramerius5ServerType()
-    library.server_type.get_document_pages = lambda url: ["page-1", "page-2"]
+    library.server_type = Kramerius5ServerType
+    monkeypatch.setattr(Kramerius5ServerType, "get_document_pages", lambda self, url: ["page-1", "page-2"])
+    monkeypatch.setattr(Kramerius5ServerType, "get_document_title", lambda self, url: "")
+    monkeypatch.setattr(Kramerius5ServerType, "get_document_subtitle", lambda self, url: "")
     library.page_detail_url = "https://example.com/detail"
 
     document = DSMODocumentFactory.from_url(
         library,
+        Kramerius5ServerType(),
         DOCUMENT_URL,
         page_detail_url="https://example.com/detail",
         output_dir="tmp",
@@ -71,8 +74,10 @@ def test_dsmo_document_factory_from_url_discovers_pages_when_not_provided(monkey
 def test_dsmo_document_factory_from_url_uses_explicit_page_detail_url(monkeypatch):
     captured = {}
     library = SimpleNamespace()
-    library.server_type = Kramerius5ServerType()
-    library.server_type.get_document_pages = lambda url: ["page-1"]
+    library.server_type = Kramerius5ServerType
+    monkeypatch.setattr(Kramerius5ServerType, "get_document_pages", lambda self, url: ["page-1"])
+    monkeypatch.setattr(Kramerius5ServerType, "get_document_title", lambda self, url: "")
+    monkeypatch.setattr(Kramerius5ServerType, "get_document_subtitle", lambda self, url: "")
     library.page_detail_url = "https://library.example.com/detail"
 
     def fake_from_uuid(page_uuid, page_url, page_detail_url, index, output_dir):
@@ -85,6 +90,7 @@ def test_dsmo_document_factory_from_url_uses_explicit_page_detail_url(monkeypatc
 
     DSMODocumentFactory.from_url(
         library,
+        Kramerius5ServerType(),
         DOCUMENT_URL,
         page_detail_url="https://explicit.example.com/detail",
         output_dir="tmp",

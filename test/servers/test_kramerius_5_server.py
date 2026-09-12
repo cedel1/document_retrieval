@@ -46,12 +46,12 @@ def test_get_document_pages_uses_helper_class_and_returned_values(monkeypatch):
     server = Kramerius5ServerType()
     captured = {}
 
-    def fake_get_class_from_name(name):
+    def fake_get_class_from_name(self, name):
         captured["name"] = name
         return FakeGetter
 
-    monkeypatch.setattr(server, "_get_class_name", lambda page_method: "FakeGetter")
-    monkeypatch.setattr(server, "_get_class_from_name", fake_get_class_from_name)
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "FakeGetter")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", fake_get_class_from_name)
 
     result = server.get_document_pages(DOCUMENT_URL)
 
@@ -71,18 +71,18 @@ def test_get_document_pages_retries_next_method_when_first_fails(monkeypatch):
         "SuccessAfterFailingGetter": SuccessAfterFailingGetter,
     }
 
-    def fake_get_class_name(page_method):
+    def fake_get_class_name(self, page_method):
         mapping = {
             "dom_selenium": "FailingGetter",
             "simple_dom": "SuccessAfterFailingGetter",
         }
         return mapping[page_method]
 
-    def fake_get_class_from_name(name):
+    def fake_get_class_from_name(self, name):
         return defs[name]
 
-    monkeypatch.setattr(server, "_get_class_name", fake_get_class_name)
-    monkeypatch.setattr(server, "_get_class_from_name", fake_get_class_from_name)
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", fake_get_class_name)
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", fake_get_class_from_name)
 
     result = server.get_document_pages(DOCUMENT_URL)
 
@@ -93,8 +93,50 @@ def test_get_document_pages_raises_when_every_strategy_fails(monkeypatch):
     server = Kramerius5ServerType()
     server.document_page_methods = {"dom_selenium": PAGE_PATTERN}
 
-    monkeypatch.setattr(server, "_get_class_name", lambda page_method: "FailingGetter")
-    monkeypatch.setattr(server, "_get_class_from_name", lambda name: FailingGetter)
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "FailingGetter")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", lambda self, name: FailingGetter)
+
+    with pytest.raises(ValueError, match="Could not find pages for Kramerius 5 server"):
+        server.get_document_pages(DOCUMENT_URL)
+
+
+def test_get_document_pages_reuses_active_getter():
+    server = Kramerius5ServerType()
+
+    class ActiveGetter:
+        def get_pages(self, document_url, xpath):
+            return ["active-page"]
+
+    server.active_getter_instance = ActiveGetter()
+
+    assert server.get_document_pages(DOCUMENT_URL) == ["active-page"]
+
+
+def test_get_document_pages_discards_active_getter_after_failure(monkeypatch):
+    server = Kramerius5ServerType()
+
+    class ActiveGetter:
+        def get_pages(self, document_url, xpath):
+            raise ValueError("stale getter")
+
+    server.active_getter_instance = ActiveGetter()
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "FakeGetter")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", lambda self, name: FakeGetter)
+
+    assert server.get_document_pages(DOCUMENT_URL) == ["uuid-1", "uuid-2"]
+    assert isinstance(server.active_getter_instance, FakeGetter)
+
+
+def test_get_document_pages_raises_when_getter_returns_no_pages(monkeypatch):
+    server = Kramerius5ServerType()
+
+    class EmptyGetter:
+        def get_pages(self, document_url, search_attribute):
+            return []
+
+    server.document_page_methods = {"empty": PAGE_PATTERN}
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "EmptyGetter")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", lambda self, name: EmptyGetter)
 
     with pytest.raises(ValueError, match="Could not find pages for Kramerius 5 server"):
         server.get_document_pages(DOCUMENT_URL)
@@ -108,10 +150,52 @@ def test_get_document_name_returns_value_when_helper_finds_it(monkeypatch):
         def get_title(self, document_url, xpath):
             return "Found Title"
 
-    monkeypatch.setattr(server, "_get_class_name", lambda page_method: "NameGetter")
-    monkeypatch.setattr(server, "_get_class_from_name", lambda name: NameGetter)
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "NameGetter")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", lambda self, name: NameGetter)
 
     assert server.get_document_title(DOCUMENT_URL) == "Found Title"
+
+
+def test_get_document_subtitle_returns_value_when_helper_finds_it(monkeypatch):
+    server = Kramerius5ServerType()
+    server.document_page_methods = {"dom_selenium": None}
+
+    class SubtitleGetter:
+        def get_subtitle(self, document_url, xpath):
+            return "Found Subtitle"
+
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "SubtitleGetter")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", lambda self, name: SubtitleGetter)
+
+    assert server.get_document_subtitle(DOCUMENT_URL) == "Found Subtitle"
+
+
+def test_get_document_subtitle_returns_empty_string_when_helpers_fail(monkeypatch):
+    server = Kramerius5ServerType()
+    server.document_page_methods = {"dom_selenium": None}
+
+    class FailingSubtitleGetter:
+        def get_subtitle(self, document_url, xpath):
+            raise ValueError("missing subtitle")
+
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "FailingSubtitleGetter")
+    monkeypatch.setattr(
+        Kramerius5ServerType, "_get_class_from_name", lambda self, name: FailingSubtitleGetter
+    )
+
+    assert server.get_document_subtitle(DOCUMENT_URL) == ""
+
+
+def test_get_document_title_uses_active_getter(monkeypatch):
+    server = Kramerius5ServerType()
+
+    class ActiveGetter:
+        def get_title(self, document_url, xpath):
+            return "Active Title"
+
+    server.active_getter_instance = ActiveGetter()
+
+    assert server.get_document_title(DOCUMENT_URL) == "Active Title"
 
 
 def test_get_document_name_raises_when_no_helper_returns_name(monkeypatch):
@@ -122,11 +206,30 @@ def test_get_document_name_raises_when_no_helper_returns_name(monkeypatch):
         def get_title(self, document_url, xpath):
             return ""
 
-    monkeypatch.setattr(server, "_get_class_name", lambda page_method: "EmptyNameGetter")
-    monkeypatch.setattr(server, "_get_class_from_name", lambda name: EmptyNameGetter)
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "EmptyNameGetter")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", lambda self, name: EmptyNameGetter)
 
-    with pytest.raises(ValueError, match="Could not find document title for Kramerius 5 server"):
-        server.get_document_title(DOCUMENT_URL)
+    assert server.get_document_title(DOCUMENT_URL) == ""
+
+
+def test_get_document_title_discards_failed_active_getter_and_uses_next_helper(monkeypatch):
+    server = Kramerius5ServerType()
+
+    class ActiveGetter:
+        def get_title(self, document_url, xpath):
+            raise ValueError("stale title getter")
+
+    class FallbackGetter:
+        def get_title(self, document_url, xpath):
+            return "Fallback Title"
+
+    server.active_getter_instance = ActiveGetter()
+    server.document_page_methods = {"dom_selenium": None}
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "FallbackGetter")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", lambda self, name: FallbackGetter)
+
+    assert server.get_document_title(DOCUMENT_URL) == "Fallback Title"
+    assert server.active_getter_instance is None
 
 
 def test_get_document_title_continues_on_value_error_and_uses_next_method(monkeypatch):
@@ -143,10 +246,10 @@ def test_get_document_title_continues_on_value_error_and_uses_next_method(monkey
 
     classes = iter([RaisingGetter, SuccessGetter])
 
-    def fake_get_class(class_name):
+    def fake_get_class(self, class_name):
         return next(classes)
 
-    monkeypatch.setattr(server, "_get_class_name", lambda page_method: "X")
-    monkeypatch.setattr(server, "_get_class_from_name", fake_get_class)
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_name", lambda self, page_method: "X")
+    monkeypatch.setattr(Kramerius5ServerType, "_get_class_from_name", fake_get_class)
 
     assert server.get_document_title(DOCUMENT_URL) == "Recovered Title"
