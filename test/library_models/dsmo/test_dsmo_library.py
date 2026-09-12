@@ -23,8 +23,9 @@ def test_dsmo_library_default_constructor_handles_missing_document_url():
 def test_dsmo_library_preprocess_document_from_url_passes_through_arguments(monkeypatch):
     captured = {}
 
-    def fake_from_url(library, source_url, page_detail_url, output_dir, page_uuids=None):
+    def fake_from_url(library, server_instance, source_url, page_detail_url, output_dir, page_uuids=None):
         captured["library"] = library
+        captured["server_instance"] = server_instance
         captured["source_url"] = source_url
         captured["page_detail_url"] = page_detail_url
         captured["output_dir"] = output_dir
