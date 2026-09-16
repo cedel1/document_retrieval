@@ -4,18 +4,24 @@ import sys
 import types
 
 import pytest
-
 from src.helper_services.dom_selenium_getter import DomSeleniumGetterMethod
-from test.helper_services.fixtures import PAGE_HTML, PAGE_SEARCH_PATTERN
+from test.helper_services.fixtures import page_html, page_search_pattern
 
 
-def test_get_pages_uses_selenium_html_and_passes_expected_attributes(monkeypatch):
-    getter = DomSeleniumGetterMethod()
+@pytest.fixture
+def dom_selenium_getter():
+    """Fixture providing a DomSeleniumGetterMethod instance."""
+    return DomSeleniumGetterMethod()
+
+
+def test_get_pages_uses_selenium_html_and_passes_expected_attributes(
+    monkeypatch, dom_selenium_getter, page_html, page_search_pattern
+):
     captured = {}
 
     def fake_request(document_url):
         captured["document_url"] = document_url
-        return PAGE_HTML
+        return page_html
 
     def fake_extract(self, soup, search_parameter):
         captured["soup"] = soup
@@ -25,32 +31,33 @@ def test_get_pages_uses_selenium_html_and_passes_expected_attributes(monkeypatch
             "22222222-2222-2222-2222-222222222222",
         ]
 
-    monkeypatch.setattr(getter, "_try_selenium_dom_request", fake_request)
+    monkeypatch.setattr(dom_selenium_getter, "_try_selenium_dom_request", fake_request)
     monkeypatch.setattr(DomSeleniumGetterMethod, "_extract_uuids_from_divs_with_id_pattern", fake_extract)
 
-    result = getter.get_pages("https://example.com/document", PAGE_SEARCH_PATTERN)
+    result = dom_selenium_getter.get_pages("https://example.com/document", page_search_pattern)
 
     assert result == [
         "11111111-1111-1111-1111-111111111111",
         "22222222-2222-2222-2222-222222222222",
     ]
     assert captured["document_url"] == "https://example.com/document"
-    assert captured["search_parameter"] == PAGE_SEARCH_PATTERN
+    assert captured["search_parameter"] == page_search_pattern
     assert captured["soup"] is not None
 
 
-def test_get_pages_returns_empty_list_when_no_matching_ids_are_present(monkeypatch):
-    getter = DomSeleniumGetterMethod()
+def test_get_pages_returns_empty_list_when_no_matching_ids_are_present(
+    monkeypatch, dom_selenium_getter, page_search_pattern
+):
     monkeypatch.setattr(
-        getter, "_try_selenium_dom_request", lambda document_url: "<html><body><div id='other'></div></body></html>"
+        dom_selenium_getter,
+        "_try_selenium_dom_request",
+        lambda document_url: "<html><body><div id='other'></div></body></html>",
     )
 
-    assert getter.get_pages("https://example.com/document", PAGE_SEARCH_PATTERN) == []
+    assert dom_selenium_getter.get_pages("https://example.com/document", page_search_pattern) == []
 
 
-def test_try_selenium_dom_request_returns_empty_string_when_selenium_import_fails(monkeypatch):
-    getter = DomSeleniumGetterMethod()
-
+def test_try_selenium_dom_request_returns_empty_string_when_selenium_import_fails(monkeypatch, dom_selenium_getter):
     real_import = __import__
 
     def fake_import(name, *args, **kwargs):
@@ -60,12 +67,10 @@ def test_try_selenium_dom_request_returns_empty_string_when_selenium_import_fail
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
-    assert getter._try_selenium_dom_request("https://example.com/document") == ""
+    assert dom_selenium_getter._try_selenium_dom_request("https://example.com/document") == ""
 
 
-def test_try_selenium_dom_request_returns_empty_string_when_driver_creation_fails(monkeypatch):
-    getter = DomSeleniumGetterMethod()
-
+def test_try_selenium_dom_request_returns_empty_string_when_driver_creation_fails(monkeypatch, dom_selenium_getter):
     class FakeOptions:
         def add_argument(self, argument):
             pass
@@ -88,7 +93,7 @@ def test_try_selenium_dom_request_returns_empty_string_when_driver_creation_fail
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
-    assert getter._try_selenium_dom_request("https://example.com/document") == ""
+    assert dom_selenium_getter._try_selenium_dom_request("https://example.com/document") == ""
 
 
 def test_setup_selenium_options_configures_headless_chrome(monkeypatch):

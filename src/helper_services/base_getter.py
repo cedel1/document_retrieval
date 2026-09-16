@@ -3,8 +3,9 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from bs4 import BeautifulSoup
 from requests import Response
+
+from bs4 import BeautifulSoup
 
 IMPLEMENT_IN_SUBCLASSES = "This method should be implemented in subclasses."
 

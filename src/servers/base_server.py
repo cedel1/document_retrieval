@@ -108,9 +108,7 @@ class BaseServerType(ABC):
     @abstractmethod
     def get_document_title(self, document_url: str) -> str:
         """Get the document title for the current server."""
-        raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)
 
     @abstractmethod
     def get_document_subtitle(self, document_url: str) -> str:
         """Get the document subtitle for the current server."""
-        raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)

@@ -1,10 +1,14 @@
 """Tests for DSMODocumentPage."""
 
+import pytest
+
 from src.library_models.dsmo.dsmo_document_page import DSMODocumentPage
 
 
-def test_get_page_url_and_download_url_are_built_correctly():
-    page = DSMODocumentPage(
+@pytest.fixture
+def dsmo_document_page():
+    """Fixture providing a DSMODocumentPage instance for testing."""
+    return DSMODocumentPage(
         "page-uuid",
         "https://example.com/document?page=uuid:page-uuid",
         "https://example.com/detail/",
@@ -12,17 +16,19 @@ def test_get_page_url_and_download_url_are_built_correctly():
         "tmp",
     )
 
+
+def test_get_page_url_and_download_url_are_built_correctly(dsmo_document_page):
     assert (
         DSMODocumentPage.get_page_url("page-uuid", "https://example.com/document")
         == "https://example.com/document?page=uuid:page-uuid"
     )
     assert (
-        page.get_page_download_url("page-uuid")
+        dsmo_document_page.get_page_download_url("page-uuid")
         == "https://example.com/detail/search/zoomify/uuid:page-uuid/ImageProperties.xml"
     )
 
 
-def test_download_delegates_to_download_service(monkeypatch):
+def test_download_delegates_to_download_service(monkeypatch, dsmo_document_page):
     captured = {}
 
     def fake_retrieve(properties_download_url, output_base, dezoomify_path, dezoomify_args):

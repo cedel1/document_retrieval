@@ -2,9 +2,9 @@
 
 import logging
 
-from bs4 import BeautifulSoup
 from requests import HTTPError
 
+from bs4 import BeautifulSoup
 from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 
 MSG_SELENIUM_REQUEST_FAILED = "Selenium request failed: %s"

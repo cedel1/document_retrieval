@@ -3,24 +3,11 @@
 import importlib
 
 from src.servers.base_server import BaseServerType
+from test.servers.fixtures import example_server_type
 
 
-class ExampleServerType(BaseServerType):
-    server_type = "example"
-    server_version = 3
-
-    def get_document_pages(self, document_url: str) -> list[str]:
-        return [document_url]
-
-    def get_document_title(self, document_url: str) -> str:
-        return "Example Document"
-
-    def get_document_subtitle(self, document_url: str) -> str:
-        return "Example Document Subtitle"
-
-
-def test_base_server_str_includes_server_type_and_version():
-    assert str(ExampleServerType()) == "example_3"
+def test_base_server_str_includes_server_type_and_version(example_server_type):
+    assert str(example_server_type()) == "example_3"
 
 
 def test_get_class_name_formats_registry_names():
@@ -29,7 +16,7 @@ def test_get_class_name_formats_registry_names():
     assert BaseServerType._get_class_name("rest_api") == "RestApiGetterMethod"
 
 
-def test_get_class_from_name_imports_helper_class(monkeypatch):
+def test_get_class_from_name_imports_helper_class(monkeypatch, example_server_type):
     class FakeGetter:
         pass
 
@@ -41,23 +28,23 @@ def test_get_class_from_name_imports_helper_class(monkeypatch):
 
     monkeypatch.setattr(importlib, "import_module", fake_import)
 
-    result = ExampleServerType()._get_class_from_name("SimpleDomGetterMethod")
+    result = example_server_type()._get_class_from_name("SimpleDomGetterMethod")
 
     assert result is FakeGetter
 
 
-def test_get_class_from_name_returns_none_for_missing_helper(monkeypatch):
+def test_get_class_from_name_returns_none_for_missing_helper(monkeypatch, example_server_type):
     fake_module = type("FakeModule", (), {})
 
     monkeypatch.setattr(importlib, "import_module", lambda module_name: fake_module)
 
-    assert ExampleServerType()._get_class_from_name("DoesNotExist") is None
+    assert example_server_type()._get_class_from_name("DoesNotExist") is None
 
 
-def test_get_class_from_name_returns_none_when_module_import_fails(monkeypatch):
+def test_get_class_from_name_returns_none_when_module_import_fails(monkeypatch, example_server_type):
     def fake_import(name):
         raise ImportError("missing module")
 
     monkeypatch.setattr(importlib, "import_module", fake_import)
 
-    assert ExampleServerType()._get_class_from_name("SimpleDomGetterMethod") is None
+    assert example_server_type()._get_class_from_name("SimpleDomGetterMethod") is None
