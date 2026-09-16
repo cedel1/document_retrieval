@@ -4,8 +4,6 @@ from src.helpers.singleton import Singleton, SingletonMeta
 
 
 def test_singleton_meta_returns_same_instance_and_preserves_first_arguments():
-    SingletonMeta._instances.clear()
-
     class SampleSingleton(metaclass=SingletonMeta):
         def __init__(self, value: int = 0, *, label: str = "") -> None:
             self.value = value
@@ -21,8 +19,6 @@ def test_singleton_meta_returns_same_instance_and_preserves_first_arguments():
 
 
 def test_singleton_base_class_behaves_like_singleton_across_reinstantiation():
-    SingletonMeta._instances.clear()
-
     class Config(Singleton):
         def __init__(self, *, mode: str = "default") -> None:
             self.mode = mode

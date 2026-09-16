@@ -3,20 +3,12 @@
 from pathlib import Path
 
 from src.library_models.base.base_document import BaseDocument
-from src.library_models.base.base_document_page import BaseDocumentPage
+from test.library_models.base.fixtures import dummy_page_class
 
 
-class DummyPage(BaseDocumentPage):
-    def __init__(self, identifier: str, page_url: str, page_detail_url: str, index: int, output_dir: str):
-        super().__init__(identifier, page_url, page_detail_url, index, output_dir)
-
-    def download(self, dezoomify_path: str = "dezoomify-rs", dezoomify_args=None) -> bool:
-        return True
-
-
-def test_base_document_initializes_pages_and_output_directory():
-    page_one = DummyPage("page-1", "https://example.com/page-1", "https://example.com/detail", 1, "tmp")
-    page_two = DummyPage("page-2", "https://example.com/page-2", "https://example.com/detail", 2, "tmp")
+def test_base_document_initializes_pages_and_output_directory(dummy_page_class):
+    page_one = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, "tmp")
+    page_two = dummy_page_class("page-2", "https://example.com/page-2", "https://example.com/detail", 2, "tmp")
 
     document = BaseDocument(
         "doc-123", source_url="https://example.com/doc", output_dir="tmp", pages=[page_one, page_two]
@@ -30,8 +22,8 @@ def test_base_document_initializes_pages_and_output_directory():
     assert page_one.output_dir == document.output_dir
 
 
-def test_base_document_add_page_updates_directory_and_properties_path(tmp_path):
-    page = DummyPage("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(tmp_path))
+def test_base_document_add_page_updates_directory_and_properties_path(tmp_path, dummy_page_class):
+    page = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(tmp_path))
     document = BaseDocument("doc-123", output_dir=str(tmp_path / "doc-123"))
 
     document.add_page(page)
@@ -40,9 +32,9 @@ def test_base_document_add_page_updates_directory_and_properties_path(tmp_path):
     assert page.output_dir == document.output_dir
 
 
-def test_base_document_create_properties_file_writes_expected_content(tmp_path):
+def test_base_document_create_properties_file_writes_expected_content(tmp_path, dummy_page_class):
     doc_dir = tmp_path / "doc-123"
-    page = DummyPage("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(doc_dir))
+    page = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(doc_dir))
     document = BaseDocument("doc-123", output_dir=str(doc_dir), pages=[page])
 
     document.create_properties_file(

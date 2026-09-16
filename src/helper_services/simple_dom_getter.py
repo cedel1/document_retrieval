@@ -5,10 +5,10 @@ import re
 from typing import List, Any
 
 import requests
-from bs4 import BeautifulSoup
-from lxml import etree
 from requests import HTTPError
 
+from bs4 import BeautifulSoup
+from lxml import etree
 from src.helper_services.base_getter import BaseGetterMethod
 
 logger = logging.getLogger(__name__)
