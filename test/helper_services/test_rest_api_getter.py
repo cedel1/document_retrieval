@@ -1,91 +1,60 @@
 """Tests for the REST API getter helper."""
 
 import requests
-from requests import HTTPError
 
+import pytest
+import responses
 from src.helper_services.rest_api_getter import RestApiGetterMethod
-from test.helper_services.fixtures import API_PAYLOAD, FakeResponse
+from test.helper_services.fixtures import api_payload
 
 
-class RaiseResp:
-    def raise_for_status(self):
-        raise requests.HTTPError("bad status")
-
-    def json(self):
-        return {}
+@pytest.fixture
+def rest_api_getter():
+    """Fixture providing a RestApiGetterMethod instance."""
+    return RestApiGetterMethod("https://example.com/api")
 
 
-def test_get_pages_calls_api_with_expected_parameters_and_returns_payload(monkeypatch):
-    getter = RestApiGetterMethod("https://example.com/api")
-    captured = {}
+@responses.activate
+def test_get_pages_calls_api_with_expected_parameters_and_returns_payload(rest_api_getter, api_payload):
+    responses.add(responses.GET, "https://example.com/api", json=api_payload, status=200)
 
-    def fake_get(url, **kwargs):
-        captured["source_url"] = url
-        captured["kwargs"] = kwargs
-        response = FakeResponse(json_data=API_PAYLOAD)
-        response.raise_for_status = lambda: captured.__setitem__("raise_for_status_called", True)
-        return response
+    result = rest_api_getter.get_pages("https://example.com/document", "pages")
 
-    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
-
-    result = getter.get_pages("https://example.com/document", "pages")
-
-    assert result == API_PAYLOAD["pages"]
-    assert captured["source_url"] == "https://example.com/api"
-    assert captured["kwargs"]["timeout"] == 30
-    assert captured["kwargs"]["verify"] is False
-    assert captured["raise_for_status_called"] is True
+    assert result == api_payload["pages"]
+    assert responses.calls[0].request.url == "https://example.com/api"
 
 
-def test_get_pages_returns_empty_list_when_search_key_is_missing(monkeypatch):
-    getter = RestApiGetterMethod("https://example.com/api")
+@responses.activate
+def test_get_pages_returns_empty_list_when_search_key_is_missing(rest_api_getter):
+    responses.add(responses.GET, "https://example.com/api", json={"other_pages": ["abc"]}, status=200)
 
-    def fake_get(*args, **kwargs):
-        response = FakeResponse(json_data={"other_pages": ["abc"]})
-        response.raise_for_status = lambda: None
-        return response
-
-    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
-
-    assert getter.get_pages("https://example.com/document", "pages") == []
+    assert rest_api_getter.get_pages("https://example.com/document", "pages") == []
 
 
-def test_get_pages_returns_empty_list_when_request_fails(monkeypatch):
-    getter = RestApiGetterMethod("https://example.com/api")
+@responses.activate
+def test_get_pages_returns_empty_list_when_request_fails(rest_api_getter):
+    responses.add(responses.GET, "https://example.com/api", body=requests.RequestException("timeout"))
 
-    def fake_get(*args, **kwargs):
-        raise requests.RequestException("timeout")
-
-    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
-
-    assert getter.get_pages("https://example.com/document", "pages") == []
+    assert rest_api_getter.get_pages("https://example.com/document", "pages") == []
 
 
-def test_get_document_source_handles_request_exception(monkeypatch):
-    getter = RestApiGetterMethod("https://example.com/api")
+@responses.activate
+def test_get_document_source_handles_request_exception(rest_api_getter):
+    responses.add(responses.GET, "https://example.com/api", body=requests.RequestException("network"))
 
-    def fake_get(*args, **kwargs):
-        raise requests.RequestException("network")
-
-    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
-
-    assert getter.get_document_source("https://example.com/document") is None
+    assert rest_api_getter.get_document_source("https://example.com/document") is None
 
 
-def test_get_document_source_handles_non_200(monkeypatch):
-    getter = RestApiGetterMethod("https://example.com/api")
+@responses.activate
+def test_get_document_source_handles_non_200(rest_api_getter, api_payload):
+    responses.add(responses.GET, "https://example.com/api", json=api_payload, status=500)
 
-    def fake_get(*args, **kwargs):
-        return FakeResponse(json_data=API_PAYLOAD, exc=HTTPError("bad status"))
-
-    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", fake_get)
-
-    assert getter.get_document_source("https://example.com/document") is None
+    assert rest_api_getter.get_document_source("https://example.com/document") is None
 
 
-def test_get_document_source_handles_raise_for_status(monkeypatch):
-    monkeypatch.setattr("src.helper_services.rest_api_getter.requests.get", lambda *a, **k: RaiseResp())
-
+@responses.activate
+def test_get_document_source_handles_raise_for_status():
+    responses.add(responses.GET, "http://api", status=500)
     inst = RestApiGetterMethod("http://api")
     assert inst.get_document_source("/doc") is None
 

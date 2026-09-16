@@ -1,10 +1,9 @@
 """Tests for DSMOLibrary."""
 
-from src.helpers.singleton import SingletonMeta
 from src.library_models.dsmo.dsmo_library import DSMOLibrary
 
 
-def test_dsmo_library_uses_expected_server_metadata(monkeypatch):
+def test_dsmo_library_uses_expected_server_metadata():
     library = DSMOLibrary("https://www.digitalniknihovna.cz/dsmo/view/uuid:11111111-1111-1111-1111-111111111111")
 
     assert library.library_name == "Library_DSMO"
@@ -13,7 +12,6 @@ def test_dsmo_library_uses_expected_server_metadata(monkeypatch):
 
 
 def test_dsmo_library_default_constructor_handles_missing_document_url():
-    SingletonMeta._instances.pop(DSMOLibrary, None)
     library = DSMOLibrary()
 
     assert library.library_url == ""
