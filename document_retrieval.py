@@ -11,6 +11,8 @@ import logging
 from pathlib import Path
 from typing import Dict
 
+from pathvalidate.argparse import validate_filepath_arg
+
 from src.library_models.base.base_library import BaseLibrary
 from src.library_models.factories.library_factory import LibraryFactory
 
@@ -103,12 +105,17 @@ def main():
         None. The function configures logging and exits with side-effects (files, logs).
     """
     parser = argparse.ArgumentParser(description="Retrieve multiple documents from a file")
+    # This file should already exist on the filesystem, created by user:
+    # so no need to validate - it either is or is not found
     parser.add_argument("--documents_file", help="Path to text file containing document URLs (one per line)")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose (debug) logging")
 
     # Parse known arguments to pass through to document_retrieval.py
     parser.add_argument("--pages", nargs="+", help="List of page UUIDs to download (overrides automatic discovery)")
-    parser.add_argument("--output", default="output", help="Base output directory for downloaded images")
+    # this will be most likely created by this script, so validate it
+    parser.add_argument(
+        "--output", default="output", help="Base output directory for downloaded images", type=validate_filepath_arg
+    )
     parser.add_argument(
         "--dezoomify-path", default="dezoomify-rs", help="Path to dezoomify-rs executable (default: dezoomify-rs)"
     )
