@@ -8,6 +8,8 @@ from pathlib import Path
 from socketserver import BaseServer
 from typing import Optional, Sequence
 
+from pathvalidate import sanitize_filepath, sanitize_filename
+
 from src.library_models.base.base_document import BaseDocument
 from src.library_models.base.base_document_factory import BaseDocumentFactory
 from src.library_models.base.base_library import BaseLibrary
@@ -45,8 +47,14 @@ class DSMODocumentFactory(BaseDocumentFactory):
     @staticmethod
     def _create_document_path(output_dir: str, document_uuid: str, document_title: str = "") -> str:
         """Create the filename for a DSMO document."""
-        path = ((document_uuid + "_") if document_uuid else "") + document_title
-        return str(Path(output_dir + "/" + path[:255])) if path else str(Path(output_dir))
+        document_output_dir = sanitize_filename(
+            document_uuid + ("_" if (document_uuid and document_title) else "") + document_title
+        )[:255]
+        return (
+            str(Path(sanitize_filepath(output_dir + "/" + document_output_dir)))
+            if document_output_dir
+            else str(Path(sanitize_filepath(output_dir)))
+        )
 
     @staticmethod
     # pylint: disable-next=too-many-arguments, too-many-positional-arguments
