@@ -124,3 +124,50 @@ def test_dsmo_document_factory_from_url_should_return_empty_string_when_document
             output_dir="tmp",
         )
         assert document.subtitle == ""
+
+
+@pytest.mark.parametrize(
+    "base_output_dir, document_uuid, document_title, expected_result",
+    [
+        ("output", "aaaaaa-bbbbbb-cccccc-dddddd", "my_document", "output/aaaaaa-bbbbbb-cccccc-dddddd_my_document"),
+        ("output", "aaaaaa-bbbbbb-cccccc-dddddd", "", "output/aaaaaa-bbbbbb-cccccc-dddddd"),
+        ("output", "", "my_document", "output/my_document"),
+        ("output", "", "", "output"),
+        (
+            "output directory *",
+            "aaaaaa-bbbbbb-cccccc-dddddd",
+            "my document",
+            "output directory/aaaaaa-bbbbbb-cccccc-dddddd_my document",
+        ),
+        (
+            "output directory :",
+            "aaaaaa-bbbbbb-cccccc-dddddd",
+            "my /document",
+            "output directory/aaaaaa-bbbbbb-cccccc-dddddd_my document",
+        ),
+        (
+            "output directory :\\",
+            "aaaaaa-bbbbbb-cccccc-\\dddddd",
+            "my /docu\\<me>\\nt",
+            "output directory/aaaaaa-bbbbbb-cccccc-dddddd_my document",
+        ),
+        (
+            "output directory",
+            "aaaaaa-bbbbbb-cccccc-dddddd",
+            "my document name that should be longer than two hundred and fifty five characters but is not"
+            " that long so repeat it a couple times - my document name that should be longer than two hundred and "
+            "fifty five characters but is not that long so repeat it a couple times",
+            "output directory/aaaaaa-bbbbbb-cccccc-dddddd_my document name that should be longer than two hundred"
+            " and fifty five characters but is not that long so repeat it a couple times - my document name that "
+            "should be longer than two hundred and fifty five characters but is not t",
+        ),
+    ],
+)
+# @pytest.mark.filterwarnings("ignore:invalid escape sequence:SyntaxWarning")
+def test__create_document_path_should_sanitize_future_directory_name_properly(
+    base_output_dir, document_uuid, document_title, expected_result
+):
+    """Tests that the document path is sanitized and does not contain invalid characters"""
+    result = DSMODocumentFactory._create_document_path(base_output_dir, document_uuid, document_title)
+
+    assert result == expected_result
