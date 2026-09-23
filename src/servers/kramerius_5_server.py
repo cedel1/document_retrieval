@@ -52,6 +52,7 @@ class Kramerius5ServerType(BaseServerType):
                 self.active_getter_instance = None
 
         page_urls = None
+        # do not make this async, as only the first successful one should be used
         for page_method, search_attribute in self.document_page_methods.items():
             logger.info("Trying page method: %s with search attribute: %s", page_method, search_attribute)
             # create a class from the page method key
