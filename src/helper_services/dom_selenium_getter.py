@@ -116,7 +116,7 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
                 logger.debug("Loading page with Selenium: %s", document_url)
                 driver.get(document_url)
                 try:
-                    WebDriverWait(driver, 10).until(
+                    WebDriverWait(driver, 10, 2).until(
                         EC.presence_of_element_located((By.CLASS_NAME, "app-navigation-item"))
                     )
                 # pylint: disable-next=broad-exception-caught
