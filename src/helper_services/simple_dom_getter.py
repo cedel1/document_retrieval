@@ -117,7 +117,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             page_uuid = uuid_match.group(1)
             if page_uuid not in page_uuids:  # Avoid duplicates (can't use set because order matters)
                 page_uuids.append(page_uuid)
-                print(f"Found page UUID: {page_uuid}")
+                logger.debug("Found page UUID: %s", page_uuid)
         return page_uuids
 
     def get_subtitle(self, document_url: str, xpath: str) -> str:

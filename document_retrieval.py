@@ -8,6 +8,7 @@ all pages for each document.
 
 import argparse
 import logging
+from multiprocessing.pool import Pool, AsyncResult
 from pathlib import Path
 from typing import Dict
 
@@ -19,6 +20,61 @@ from src.library_models.factories.library_factory import LibraryFactory
 logger = logging.getLogger(__name__)
 
 
+def get_document_urls(documents_file_path: Path):
+    """Read document URLs from a file, ignoring comments.
+
+    This function reads a file line by line and yields each line that does not
+    start with '#' (treated as a comment). Lines are stripped of leading and
+    trailing whitespace before being yielded.
+
+    Args:
+        documents_file_path: Path to a text file containing document URLs,
+            one per line. Lines starting with '#' are treated as comments
+            and ignored.
+
+    Yields:
+        str: Document URLs from the file, with whitespace stripped.
+    """
+    with open(documents_file_path, "r", encoding="UTF-8") as f:
+        for line in f:
+            if line.strip() and not line.strip().startswith("#"):
+                yield line.strip()
+
+
+def get_library_document(document_url, output_dir, page_uuids, library_class):
+    """Preprocess a single document from a URL using the provided library.
+
+    The worker creates its own library instance. Library instances are not
+    shared between processes; the parent process owns the final library state.
+
+    Args:
+        document_url: URL of the document to preprocess.
+        output_dir: Base output directory where preprocessed document data should be written.
+        page_uuids: Optional list of page UUIDs to pass-through to preprocessing; if
+            supplied, the preprocessing may attach only those pages.
+        library_class: The class of the BaseLibrary instance to use for preprocessing the document.
+
+    Returns:
+        tuple: A tuple containing (document, str(library)) where document is the preprocessed
+            BaseDocument instance and library is the name of the BaseLibrary instance.
+
+    Raises:
+        ValueError: If the document preprocessing fails for the given URL.
+    """
+    try:
+        library = library_class()
+        document = library.preprocess_document_from_url(
+            document_url,
+            page_detail_url=library.page_detail_url,
+            output_dir=output_dir,
+            page_uuids=page_uuids,
+        )
+        return document, str(library)
+    except ValueError as e:
+        logger.exception("Failed to create document for URL %s: %s", document_url, e)
+        raise e
+
+
 def preprocess_documents(
     documents_file_path: Path, output_dir: str = "output", page_uuids: list[str] = None
 ) -> Dict[str, BaseLibrary]:
@@ -27,8 +83,8 @@ def preprocess_documents(
     This function reads a newline-separated file of document URLs (ignoring
     lines that start with '#'), determines the correct library implementation
     for each URL using LibraryFactory, preprocesses the document via the
-    library-specific preprocessing hook, and collects libraries keyed by their
-    string representation.
+    library-specific preprocessing hook using multiprocessing, and collects
+    libraries keyed by their string representation.
 
     Args:
         documents_file_path: Path to a text file containing one document URL per line.
@@ -41,20 +97,31 @@ def preprocess_documents(
         that contain the preprocessed documents.
     """
     libraries: Dict[str, BaseLibrary] = {}
-    with documents_file_path.open("r", encoding="UTF-8") as f:
-        document_urls = [line.strip() for line in f if not line.strip().startswith("#")]
 
-    for document_url in document_urls:
-        try:
-            library = LibraryFactory.from_url(document_url)
-            library.append_preprocessed_document(
-                library.preprocess_document_from_url(
-                    document_url, page_detail_url=library.page_detail_url, output_dir=output_dir, page_uuids=page_uuids
+    with Pool(processes=2) as pool:
+        results: list[AsyncResult] = []
+        for document_url in get_document_urls(documents_file_path):
+            try:
+                print(f"Preprocessing {document_url}.")
+                library = LibraryFactory.from_url(document_url)
+                libraries[str(library)] = library
+                results.append(
+                    pool.apply_async(
+                        get_library_document, args=(document_url, output_dir, page_uuids, library.__class__)
+                    )
                 )
-            )
-            libraries[str(library)] = library
-        except ValueError as e:
-            logger.exception("Failed to create library for URL %s: %s", document_url, e)
+            except ValueError as e:
+                logger.exception("Failed to create library for URL %s: %s", document_url, e)
+
+        for result in results:
+            try:
+                result, library_name = result.get()
+                print(
+                    f"Appending preprocessed document {result.title} ({result.identifier}) to library {library_name}."
+                )
+                libraries[library_name].append_preprocessed_document(result)
+            except (TimeoutError, ValueError) as e:
+                logger.exception("Failed to retrieve result: %s", e)
 
     return libraries
 
@@ -144,7 +211,7 @@ def main():
     # Create base output directory
     Path(args.output).mkdir(parents=True, exist_ok=True)
 
-    success = True
+    library_results = []
     try:
         # Preprocess each document
         libraries: Dict[str, BaseLibrary] = preprocess_documents(
@@ -152,12 +219,14 @@ def main():
         )
         # Start processing per library
         for library in libraries.values():
-            success = process_library_documents(library, additional_args, args.output)
+            library_results.append(process_library_documents(library, additional_args, args.output))
+
     except ValueError as e:
-        print(e)
+        logger.exception(e)
+        raise e
 
     # Collect and display results
-    if success:
+    if all(library_results) and any(library_results):
         logger.info("All documents processed successfully.")
     else:
         logger.warning("Some documents failed to process. Check logs for details.")
