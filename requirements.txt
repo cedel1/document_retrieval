@@ -5,7 +5,7 @@ pathvalidate==3.3.1
 requests>=2.34.2
 responses>=0.25.0
 selenium>=4.15.0  # Optional: for JavaScript-rendered pages
-urllib3>=2.0.0
+urllib3>=2.8.0
 
 # dezoomify-rs command-line tool for image downloading
 # Install dezoomify-rs via: brew install dezoomify-rs
