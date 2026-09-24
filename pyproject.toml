@@ -3,7 +3,7 @@ line-length = 120
 
 [tool.coverage.run]
 branch = true
-source = ["src"]
+source = ["src", "document_retrieval.py"]
 omit = [
     "*/__pycache__/*",
     "*/.venv/*",
