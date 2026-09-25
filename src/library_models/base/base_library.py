@@ -17,18 +17,19 @@ class BaseMetaClass(ABCMeta, SingletonMeta):
 class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
     """Abstract base library/server that a specific document is hosted on."""
 
+    library_name = "Library_Base"
+
     server_urls: list[str] = []
     server_type: Optional[BaseServerType] = None
     page_detail_url: str = ""
-    # document_name_pattern: Pattern
-    library_name = "Library_Base"
+    base_api_url = ""
 
     def __init__(self, document_url: Optional[str] = "") -> None:
         """Initialize a library definition with its URL and contained documents.
 
         Args:
-            document_url (Optional[str]): URL of a document hosted on this library. If provided,
-                the library_url attribute is selected from server_urls that match this value.
+            document_url: Optional URL of a document hosted on this library. If provided,
+                         the library_url attribute is selected from server_urls that match this value.
 
         Returns:
             None: The library instance is created in memory.

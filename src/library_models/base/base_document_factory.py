@@ -21,6 +21,8 @@ class BaseDocumentFactory(ABC):
         source_url: str,
         title: str,
         subtitle: str,
+        part_title: str,
+        part_subtitle: str,
         page_detail_url: str,
         output_dir: str = "output",
         page_uuids: Optional[Sequence[str]] = None,
@@ -32,6 +34,8 @@ class BaseDocumentFactory(ABC):
             source_url: URL used to identify the source document.
             title: The title of the document.
             subtitle: The subtitle of the document.
+            part_title: The title of the document part.
+            part_subtitle: The subtitle of the document part.
             page_detail_url: The detail URL for the document.
             output_dir: Directory used to store generated document artifacts.
             page_uuids: Optional page identifiers to attach immediately.

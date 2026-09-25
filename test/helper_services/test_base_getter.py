@@ -22,12 +22,12 @@ def dummy_getter():
         def get_subtitle(self, document_url: str, xpath: str) -> str:
             return ""
 
-    return DummyGetter()
+    return DummyGetter("identifier_pattern")
 
 
 def test_base_getter_is_abstract():
     with pytest.raises(TypeError):
-        BaseGetterMethod()
+        BaseGetterMethod("identifier_pattern")
 
 
 def test_concrete_subclass_can_implement_get_pages(dummy_getter):
@@ -40,11 +40,6 @@ def test_concrete_subclass_can_implement_get_pages(dummy_getter):
 def test_abstract_base_getter_method_raises_not_implemented_when_called_directly():
     with pytest.raises(NotImplementedError, match="This method should be implemented in subclasses"):
         BaseGetterMethod.get_pages(None, "https://example.com", "pages")
-
-
-def test_abstract_get_document_source_should_raise_not_implemented():
-    with pytest.raises(NotImplementedError, match="This method should be implemented in subclasses"):
-        BaseGetterMethod.get_document_source(None, "https://example.com")
 
 
 def test_abstract_get_name_should_raise_not_implemented():

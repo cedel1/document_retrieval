@@ -25,9 +25,6 @@ class BaseDocumentPageFactory(ABC):
             index: Zero-based position of the page within the document.
             output_dir: Directory used to store page artifacts.
 
-            index: Order of the page within the parent document.
-            output_dir: Directory used to store page artifacts.
-
         Returns:
             BaseDocumentPage: A page instance configured for the provided metadata.
         """

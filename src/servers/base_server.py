@@ -2,6 +2,7 @@
 
 import importlib
 import logging
+import re
 import string
 from abc import ABC, abstractmethod
 from re import Pattern
@@ -23,14 +24,24 @@ class BaseServerType(ABC):
     base_getter_directory = "src.helper_services"
     # implementations should override this with a regex pattern to extract the document identifier from a URL
     document_identifier_url_pattern: Pattern
-    document_page_methods: dict[str, str | dict] = {
-        # examples:
-        # "rest_api": "pages",
-        # "simple_dom": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
-        # "dom_selenium": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
-    }
-    document_title_xpath: str
-    document_subtitle_xpath: str
+    document_info_methods: dict[str, dict]
+    # sample document_info_methods
+    # document_info_methods: dict[str, dict|str] = {
+    #     "dom_selenium": {
+    #         "instance_params": {},
+    #         "page_search": {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")},
+    #         "title_search": (
+    #             "//html/body/app-root/main[contains(@class, 'app-wrapper')]/app-book/div[contains(@class, "
+    #             "'app-book-wrapper')]/app-metadata[contains(@class, 'app-book-metadata')]/div/div[contains(@class, "
+    #             "'app-metadata-content')]/h1"
+    #         ),
+    #         "subtitle_search": (
+    #             "//html/body/app-root/main[contains(@class, 'app-wrapper')]/app-book/div[contains(@class, "
+    #             "'app-book-wrapper')]/app-metadata[contains(@class, 'app-book-metadata')]/div/div[contains(@class, "
+    #             "'app-metadata-content')]/h2"
+    #         ),
+    #     },
+    # }
 
     def __init__(self):
         """Initialize the server with no cached getter.
@@ -43,9 +54,24 @@ class BaseServerType(ABC):
         self.active_getter_instance = None  # we always start with empty getter
 
     def __enter__(self):
+        """Enter the context manager for the server.
+
+        Returns:
+            BaseServerType: The server instance itself.
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context manager and clear the cached getter.
+
+        Args:
+            exc_type: Exception type if an exception occurred.
+            exc_val: Exception value if an exception occurred.
+            exc_tb: Exception traceback if an exception occurred.
+
+        Returns:
+            None: Context manager exit does not suppress exceptions.
+        """
         self.active_getter_instance = None
 
     def __str__(self) -> str:
@@ -71,6 +97,53 @@ class BaseServerType(ABC):
         """
         return string.capwords(f"{method_key}_getter_method", sep="_").replace("_", "")
 
+    def get_getter_name(self) -> str | None:
+        """Get the name of the active getter instance.
+
+        Args:
+            None: This method does not accept positional arguments.
+
+        Returns:
+            str | None: The name of the active getter instance, or None if no active getter is available.
+        """
+        if self.active_getter_instance:
+            return (
+                "_".join(re.findall("[a-zA-Z][^A-Z]*", self.active_getter_instance.__class__.__name__)).lower()
+            ).split("_getter_method", maxsplit=1)[0]
+        return None
+
+    def set_next_getter(self):
+        """Get and set the next available getter method.
+
+        This method advances to the next getter method in the configured methods list.
+        If an active getter exists, it moves to the next one; otherwise, it starts
+        from the first available method.
+
+        Returns:
+            None: The active_getter_instance is set as a side effect.
+
+        Raises:
+            ValueError: If there are no more getters to try after the current one.
+        """
+        methods_list = list(self.document_info_methods.keys())
+
+        if self.active_getter_instance:
+            current_name = self.get_getter_name()
+            if current_name and current_name in methods_list:
+                try:
+                    method_name = methods_list[methods_list.index(current_name) + 1]
+                except IndexError as e:
+                    raise ValueError("No more getters to try...") from e
+            else:
+                method_name = methods_list[0]
+        else:
+            method_name = methods_list[0]
+
+        getter_class_name = self._get_class_name(method_name)
+        self.active_getter_instance = self._get_class_from_name(getter_class_name)(
+            self.document_info_methods[method_name]["instance_params"]
+        )
+
     def _get_class_from_name(self, class_name: str):
         """Dynamically import and return a class from the helper_services module.
 
@@ -92,7 +165,7 @@ class BaseServerType(ABC):
         return class_
 
     @abstractmethod
-    def get_document_pages(self, document_url: str) -> list[str]:
+    def get_document_pages(self, document_url: str) -> str | list[str] | None:
         """Get the set of document pages available for the current server.
 
         Args:
@@ -112,3 +185,11 @@ class BaseServerType(ABC):
     @abstractmethod
     def get_document_subtitle(self, document_url: str) -> str:
         """Get the document subtitle for the current server."""
+
+    @abstractmethod
+    def get_document_part_title(self, document_url: str) -> str:
+        """Get the document part title for the current server."""
+
+    @abstractmethod
+    def get_document_part_subtitle(self, document_url: str) -> str:
+        """Get the document part subtitle for the current server."""

@@ -2,13 +2,12 @@
 
 import logging
 import re
-from typing import List, Any
+from typing import List, Any, Optional
 
 import requests
-from requests import HTTPError
-
 from bs4 import BeautifulSoup
 from lxml import etree
+from requests import HTTPError
 from src.helper_services.base_getter import BaseGetterMethod
 
 logger = logging.getLogger(__name__)
@@ -18,6 +17,19 @@ class SimpleDomGetterMethod(BaseGetterMethod):
     """Extract page identifiers from HTML markup using a simple DOM scan."""
 
     description: str = "Simple DOM getter"
+
+    def __init__(self, instance_params: dict[str, Any]):
+        """Initialize the getter implementation.
+
+        Args:
+            instance_params: Dictionary containing configuration parameters for the getter.
+                             Must include 'identifier_pattern' for document identifier extraction.
+
+        Returns:
+            None: Subclasses must define their own initialization logic.
+        """
+        super().__init__(instance_params)
+        self.document_page_source: Optional[BeautifulSoup | str] = None
 
     def get_document_source(self, document_url: str) -> BeautifulSoup | str | None:
         """Get the HTML source of a document page.
@@ -70,13 +82,43 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         Returns:
             str: The title of the document, or an empty string if not found.
         """
-        try:
-            dom = etree.HTML(str(self.get_document_source(document_url)))
-            return dom.xpath(xpath)[0].text.strip()
-        except (HTTPError, IndexError) as e:
-            logger.exception("Failed to retrieve document title: %s", e)
+        return self._get_elements_text(document_url, xpath, "Failed to retrieve document title: %s")
 
-        return ""
+    def get_subtitle(self, document_url: str, xpath: str) -> str:
+        """Get the subtitle of a document.
+
+        Args:
+            document_url: URL of the document whose subtitle is requested.
+            xpath: The XPath expression to locate the document subtitle in the DOM.
+
+        Returns:
+            str: The subtitle of the document, or an empty string if not found.
+        """
+        return self._get_elements_text(document_url, xpath, "Failed to retrieve document subtitle: %s")
+
+    def get_part_title(self, document_url: str, xpath: str) -> str:
+        """Get the title of a document part.
+
+        Args:
+            document_url: URL of the document page to fetch and parse.
+            xpath: The XPath expression to locate the document part title in the DOM.
+
+        Returns:
+            str: The title of the document part, or an empty string if not found.
+        """
+        return self._get_elements_text(document_url, xpath, "Failed to retrieve document part title: %s")
+
+    def get_part_subtitle(self, document_url: str, xpath: str) -> str:
+        """Get the subtitle of a document part.
+
+        Args:
+            document_url: URL of the document whose part subtitle is requested.
+            xpath: The XPath expression to locate the document part subtitle in the DOM.
+
+        Returns:
+            str: The subtitle of the document part, or an empty string if not found.
+        """
+        return self._get_elements_text(document_url, xpath, "Failed to retrieve document part subtitle: %s")
 
     def _extract_uuids_from_divs_with_id_pattern(self, soup, search_pattern: dict | str) -> List[str]:
         """Extract UUIDs from div elements with id matching a pattern.
@@ -120,24 +162,15 @@ class SimpleDomGetterMethod(BaseGetterMethod):
                 logger.debug("Found page UUID: %s", page_uuid)
         return page_uuids
 
-    def get_subtitle(self, document_url: str, xpath: str) -> str:
-        """Get the subtitle of a document.
-
-        Args:
-            document_url: URL of the document whose subtitle is requested.
-            xpath: The XPath expression to locate the document subtitle in the DOM.
-
-        Returns:
-            str: The subtitle of the document, or an empty string if not found.
-        """
+    def _get_elements_text(self, document_url: str, xpath: str, exception_text: str) -> str:
         try:
             return " ".join(
                 [
-                    str(line.text or "").strip()
+                    str(line or "").strip()
                     for line in etree.HTML(str(self.get_document_source(document_url))).xpath(xpath)
                 ]
             ).strip()
         except (HTTPError, IndexError) as e:
-            logger.exception("Failed to retrieve document subtitle: %s", e)
+            logger.exception(exception_text, e)
 
         return ""

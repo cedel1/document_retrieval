@@ -9,7 +9,6 @@ from socketserver import BaseServer
 from typing import Optional, Sequence
 
 from pathvalidate import sanitize_filepath, sanitize_filename
-
 from src.library_models.base.base_document import BaseDocument
 from src.library_models.base.base_document_factory import BaseDocumentFactory
 from src.library_models.base.base_library import BaseLibrary
@@ -46,7 +45,16 @@ class DSMODocumentFactory(BaseDocumentFactory):
 
     @staticmethod
     def _create_document_path(output_dir: str, document_uuid: str, document_title: str = "") -> str:
-        """Create the filename for a DSMO document."""
+        """Create the output directory path for a DSMO document.
+
+        Args:
+            output_dir: Base output directory.
+            document_uuid: UUID of the document.
+            document_title: Optional title of the document.
+
+        Returns:
+            str: Sanitized filesystem path for the document output directory.
+        """
         document_output_dir = sanitize_filename(
             document_uuid + ("_" if (document_uuid and document_title) else "") + document_title
         )[:255]
@@ -63,6 +71,8 @@ class DSMODocumentFactory(BaseDocumentFactory):
         source_url: str,
         title: str,
         subtitle: str,
+        part_title: str,
+        part_subtitle: str,
         page_detail_url: str,
         output_dir: str = "output",
         page_uuids: Optional[Sequence[str]] = None,
@@ -77,6 +87,8 @@ class DSMODocumentFactory(BaseDocumentFactory):
             source_url: The original document URL; used to generate per-page URLs.
             title: The title of the document.
             subtitle: The subtitle of the document.
+            part_title: The title of the document part.
+            part_subtitle: The subtitle of the document part.
             page_detail_url: The detail URL for the document.
             output_dir: Directory where the document and page outputs should be
                 written.
@@ -105,6 +117,8 @@ class DSMODocumentFactory(BaseDocumentFactory):
             source_url=source_url,
             title=title,
             subtitle=subtitle,
+            part_title=part_title,
+            part_subtitle=part_subtitle,
             output_dir=document_output_dir,
             pages=pages,
         )
@@ -150,12 +164,22 @@ class DSMODocumentFactory(BaseDocumentFactory):
             subtitle = server_instance.get_document_subtitle(source_url)
         except ValueError:
             subtitle = ""
+        try:
+            part_title = server_instance.get_document_part_title(source_url)
+        except ValueError:
+            part_title = ""
+        try:
+            part_subtitle = server_instance.get_document_part_subtitle(source_url)
+        except ValueError:
+            part_subtitle = ""
 
         return DSMODocumentFactory.from_identifier(
             document_uuid,
             source_url,
             title,
             subtitle,
+            part_title,
+            part_subtitle,
             page_detail_url,
             output_dir=output_dir,
             page_uuids=page_uuids,
