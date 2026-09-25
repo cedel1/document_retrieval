@@ -2,9 +2,8 @@
 
 import logging
 
-from requests import HTTPError
-
 from bs4 import BeautifulSoup
+from requests import HTTPError
 from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 
 MSG_SELENIUM_REQUEST_FAILED = "Selenium request failed: %s"
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class DomSeleniumGetterMethod(SimpleDomGetterMethod):
-    """Extract page identifiers from HTML markup using a simple DOM scan."""
+    """Extract page identifiers from HTML markup using Selenium for JavaScript-rendered pages."""
 
     description: str = "Selenium DOM getter"
 

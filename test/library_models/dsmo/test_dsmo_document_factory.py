@@ -26,6 +26,8 @@ def test_dsmo_document_factory_from_uuid_builds_document_with_page_objects(monke
         document_url,
         "",
         "",
+        "",
+        "",
         "https://example.com/detail",
         output_dir="tmp",
         page_uuids=["page-1"],
