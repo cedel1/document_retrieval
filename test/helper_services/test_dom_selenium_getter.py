@@ -11,7 +11,7 @@ from test.helper_services.fixtures import page_html, page_search_pattern
 @pytest.fixture
 def dom_selenium_getter():
     """Fixture providing a DomSeleniumGetterMethod instance."""
-    return DomSeleniumGetterMethod()
+    return DomSeleniumGetterMethod({})
 
 
 def test_get_pages_uses_selenium_html_and_passes_expected_attributes(
@@ -204,7 +204,7 @@ def test_try_selenium_dom_request_creates_driver_waits_and_quits(monkeypatch):
     monkeypatch.setitem(sys.modules, "selenium.webdriver.common", types.ModuleType("selenium.webdriver.common"))
     monkeypatch.setitem(sys.modules, "selenium.webdriver.common.by", by_module)
 
-    result = DomSeleniumGetterMethod()._try_selenium_dom_request("https://example.com/document")
+    result = DomSeleniumGetterMethod({})._try_selenium_dom_request("https://example.com/document")
 
     assert result == "<html><body>Rendered</body></html>"
     assert ("set_page_load_timeout", 30) in fake_driver.calls
@@ -295,7 +295,7 @@ def test_try_selenium_dom_request_handles_wait_timeout_and_returns_page_source(m
     )
     monkeypatch.setitem(sys.modules, "selenium.webdriver.common.by", by_module)
 
-    result = DomSeleniumGetterMethod()._try_selenium_dom_request("https://example.com/document")
+    result = DomSeleniumGetterMethod({})._try_selenium_dom_request("https://example.com/document")
 
     assert result == "<html><body>RenderedTimeout</body></html>"
 
@@ -361,7 +361,7 @@ def test_try_selenium_dom_request_returns_empty_when_driver_get_raises(monkeypat
     )
     monkeypatch.setitem(sys.modules, "selenium.webdriver.common.by", by_module)
 
-    result = DomSeleniumGetterMethod()._try_selenium_dom_request("https://example.com/document")
+    result = DomSeleniumGetterMethod({})._try_selenium_dom_request("https://example.com/document")
 
     assert result == ""
 

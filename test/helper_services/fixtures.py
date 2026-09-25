@@ -30,4 +30,4 @@ def page_search_pattern():
 @pytest.fixture
 def api_payload():
     """Sample API payload for testing REST API getter."""
-    return {"pages": ["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"]}
+    return {"response": {"docs": ["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"]}}

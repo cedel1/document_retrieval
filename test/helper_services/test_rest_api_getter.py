@@ -1,8 +1,7 @@
 """Tests for the REST API getter helper."""
 
-import requests
-
 import pytest
+import requests
 import responses
 from src.helper_services.rest_api_getter import RestApiGetterMethod
 from test.helper_services.fixtures import api_payload
@@ -11,17 +10,29 @@ from test.helper_services.fixtures import api_payload
 @pytest.fixture
 def rest_api_getter():
     """Fixture providing a RestApiGetterMethod instance."""
-    return RestApiGetterMethod("https://example.com/api")
+    return RestApiGetterMethod(
+        {"identifier_pattern": "identifier_pattern_value", "base_api_url": "https://example.com/api"}
+    )
 
 
 @responses.activate
 def test_get_pages_calls_api_with_expected_parameters_and_returns_payload(rest_api_getter, api_payload):
-    responses.add(responses.GET, "https://example.com/api", json=api_payload, status=200)
+    responses.add(
+        responses.GET,
+        "https://example.com/api/search?fl=PID,dostupnost,fedora.model,dc.title,dnnt-labels,details,rels_ext_index,"
+        "model_path&q=parent_pid:%22None%22&rows=4000&start=0",
+        json=api_payload,
+        status=200,
+    )
 
-    result = rest_api_getter.get_pages("https://example.com/document", "pages")
+    result = rest_api_getter.get_pages("https://example.com/document", "result")
 
-    assert result == api_payload["pages"]
-    assert responses.calls[0].request.url == "https://example.com/api"
+    assert result == api_payload["response"]["docs"]
+    assert (
+        responses.calls[0].request.url
+        == "https://example.com/api/search?fl=PID,dostupnost,fedora.model,dc.title,dnnt-labels,details,rels_ext_index,"
+        "model_path&q=parent_pid:%22None%22&rows=4000&start=0"
+    )
 
 
 @responses.activate
@@ -55,14 +66,14 @@ def test_get_document_source_handles_non_200(rest_api_getter, api_payload):
 @responses.activate
 def test_get_document_source_handles_raise_for_status():
     responses.add(responses.GET, "http://api", status=500)
-    inst = RestApiGetterMethod("http://api")
+    inst = RestApiGetterMethod({"identifier_pattern": "identifier_pattern_value", "base_api_url": "http://api"})
     assert inst.get_document_source("/doc") is None
 
 
 def test_get_pages_handles_none_document_source(monkeypatch):
     monkeypatch.setattr(RestApiGetterMethod, "get_document_source", lambda self, url: None)
 
-    inst = RestApiGetterMethod("http://api")
+    inst = RestApiGetterMethod({"identifier_pattern": "identifier_pattern_value", "base_api_url": "http://api"})
     assert inst.get_pages("/doc", "pages") == []
 
 
@@ -73,6 +84,6 @@ def test_get_title_handles_json_error(monkeypatch):
 
     monkeypatch.setattr(RestApiGetterMethod, "get_document_source", lambda self, url: BadResp())
 
-    inst = RestApiGetterMethod("http://api")
+    inst = RestApiGetterMethod({"identifier_pattern": "identifier_pattern_value", "base_api_url": "http://api"})
     assert inst.get_title("/doc", "//h1") == ""
     assert inst.get_subtitle("/doc", "//h1") == ""

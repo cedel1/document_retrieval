@@ -16,16 +16,20 @@ from src.servers.kramerius_5_server import Kramerius5ServerType
 class DSMOLibrary(BaseLibrary):
     """Concrete DSMO library/server that a specific document is hosted on."""
 
+    library_name = "Library_DSMO"
+
     server_urls: list[str] = ["https://www.digitalniknihovna.cz/dsmo/", "https://digitalnistudovna.army.cz/"]
     server_type: BaseServerType = Kramerius5ServerType  # NOSONAR  # subclass of BaseServerType
     page_detail_url: str = "https://digitalnistudovna.army.cz/"
-    library_name = "Library_DSMO"
+    base_api_url: str = "https://digitalnistudovna.army.cz/"
 
     def __init__(self, document_url: Optional[str] = None) -> None:
         """Initialize the DSMO library definition.
 
         Args:
-            document_url: Base URL of the DSMO library.
+            document_url: Optional URL of a document hosted on the DSMO library.
+                         If provided, the library_url attribute is selected from server_urls
+                         that match this value.
 
         Returns:
             None: The library instance is created in memory.

@@ -3,7 +3,7 @@
 import importlib
 
 from src.servers.base_server import BaseServerType
-from test.servers.fixtures import example_server_type
+from test.servers.fixtures import example_server_type, document_url
 
 
 def test_base_server_str_includes_server_type_and_version(example_server_type):

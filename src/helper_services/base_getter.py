@@ -1,11 +1,7 @@
 """Abstract getter interfaces for document page discovery."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
-
-from requests import Response
-
-from bs4 import BeautifulSoup
+from typing import Any
 
 IMPLEMENT_IN_SUBCLASSES = "This method should be implemented in subclasses."
 
@@ -16,28 +12,13 @@ class BaseGetterMethod(ABC):
 
     description: str = "Base document getter"
 
-    def __init__(self):
-        """Initialize the getter implementation.
+    def __init__(self, instance_params: dict[str, Any]) -> None:
+        """Initialize the getter with instance parameters.
 
         Args:
-            None: This initializer takes no arguments.
-
-        Returns:
-            None: Subclasses must define their own initialization logic.
+            instance_params: Dictionary containing configuration parameters for the getter.
+                             Must include 'identifier_pattern' for document identifier extraction.
         """
-        self.document_page_source: Optional[BeautifulSoup | str] = None
-
-    @abstractmethod
-    def get_document_source(self, document_url: str) -> BeautifulSoup | Response | None:
-        """Get the HTML source of a document page.
-
-        Args:
-            document_url: URL of the document page to fetch and parse.
-
-        Returns:
-            BeautifulSoup | Response | None: The parsed HTML source of the document page, or None if not available.
-        """
-        raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)
 
     @abstractmethod
     def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:

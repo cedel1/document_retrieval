@@ -13,6 +13,7 @@ from src.library_models.base.base_document_page import BaseDocumentPage
 logger = logging.getLogger(__name__)
 
 
+# pylint: disable-next=too-many-instance-attributes
 class BaseDocument(ABC):
     """Abstract base document owning all pages for a given source document."""
 
@@ -23,6 +24,8 @@ class BaseDocument(ABC):
         source_url: Optional[str] = None,
         title: Optional[str] = None,
         subtitle: Optional[str] = "",
+        part_title: Optional[str] = "",
+        part_subtitle: Optional[str] = "",
         output_dir: str = "output",
         pages: Optional[Sequence[BaseDocumentPage]] = None,
     ) -> None:
@@ -32,6 +35,9 @@ class BaseDocument(ABC):
             identifier: Unique identifier for the document.
             source_url: Optional URL pointing to the source document.
             title: Optional title for the document.
+            subtitle: Optional subtitle for the document.
+            part_title: Optional title for the document part.
+            part_subtitle: Optional subtitle for the document part.
             output_dir: Directory used to store generated metadata and page files.
             pages: Optional sequence of pages to attach immediately.
 
@@ -42,6 +48,8 @@ class BaseDocument(ABC):
         self.source_url = source_url
         self.title = title
         self.subtitle = subtitle
+        self.part_title = part_title
+        self.part_subtitle = part_subtitle
         self.output_dir = Path(output_dir)
         self.pages: List[BaseDocumentPage] = []
 
@@ -121,6 +129,8 @@ class BaseDocument(ABC):
                 properties_file.write(f"Document_uuid: {self.identifier}\n")
                 properties_file.write(f"Title: {self.title}\n")
                 properties_file.write(f"Subtitle: {self.subtitle}\n")
+                properties_file.write(f"Part title: {self.part_title}\n")
+                properties_file.write(f"Part subtitle: {self.part_subtitle}\n")
                 properties_file.write("pages:\n")
                 for page_uuid in self.page_uuids:
                     properties_file.write(f"    {page_uuid}\n")

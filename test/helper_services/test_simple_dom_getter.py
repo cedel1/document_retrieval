@@ -1,9 +1,8 @@
 """Tests for the simple DOM page-discovery helper."""
 
-from requests import HTTPError
-
 import pytest
 import responses
+from requests import HTTPError
 from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 from test.helper_services.fixtures import page_html, page_search_pattern
 
@@ -11,7 +10,7 @@ from test.helper_services.fixtures import page_html, page_search_pattern
 @pytest.fixture
 def simple_dom_getter():
     """Fixture providing a SimpleDomGetterMethod instance."""
-    return SimpleDomGetterMethod()
+    return SimpleDomGetterMethod({})
 
 
 @responses.activate
