@@ -1,6 +1,7 @@
 """DOM-based page discovery helpers for library HTML pages."""
 
 import logging
+from typing import override
 
 from bs4 import BeautifulSoup
 from requests import HTTPError
@@ -32,6 +33,7 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
 
         return soup
 
+    @override
     def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
         """Get the pages of a document.
 
@@ -51,7 +53,7 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
                 logger.info("Found %d pages via basic request (static content)", len(page_uuids))
                 return page_uuids
         except HTTPError as e:
-            logger.debug(MSG_SELENIUM_REQUEST_FAILED, e)
+            logger.exception(MSG_SELENIUM_REQUEST_FAILED, e)
 
         return []
 

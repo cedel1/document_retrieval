@@ -6,6 +6,7 @@ requests>=2.34.2
 responses>=0.26.3
 selenium>=4.49.0  # Optional: for JavaScript-rendered pages
 urllib3>=2.8.0
+abcmeta>=2.2.1
 
 # dezoomify-rs command-line tool for image downloading
 # Install dezoomify-rs via: brew install dezoomify-rs

@@ -56,7 +56,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
             str: Sanitized filesystem path for the document output directory.
         """
         document_output_dir = sanitize_filename(
-            document_uuid + ("_" if (document_uuid and document_title) else "") + document_title
+            document_uuid.replace(":", "_") + ("_" if (document_uuid and document_title) else "") + document_title
         )[:255]
         return (
             str(Path(sanitize_filepath(output_dir + "/" + document_output_dir)))

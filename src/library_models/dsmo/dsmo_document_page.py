@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class DSMODocumentPage(BaseDocumentPage):
     """Concrete page object containing page metadata and output configuration."""
 
-    page_properties_download_url = "{page_detail_url}search/zoomify/uuid:{page_uuid}/ImageProperties.xml"
+    page_properties_download_url = "{page_detail_url}search/zoomify/{page_uuid}/ImageProperties.xml"
 
     @staticmethod
     def get_page_url(page_id: str, document_url: str) -> str:
@@ -27,7 +27,7 @@ class DSMODocumentPage(BaseDocumentPage):
         Returns:
             str: A page-specific URL with the page UUID included as a query parameter.
         """
-        return f"{document_url}?page=uuid:{page_id}"
+        return f"{document_url}?page={page_id}"
 
     def get_page_download_url(self, page_id: str) -> str:
         """Return the download URL for a given page UUID.
