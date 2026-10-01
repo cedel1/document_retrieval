@@ -2,7 +2,7 @@
 
 import logging
 import re
-from typing import List, Any, Optional
+from typing import List, Any, Optional, override
 
 import requests
 from bs4 import BeautifulSoup
@@ -49,6 +49,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             logger.debug("Basic request failed: %s", e)
             return None
 
+    @override
     def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
         """Get the pages of a document.
 
@@ -72,53 +73,57 @@ class SimpleDomGetterMethod(BaseGetterMethod):
 
         return []
 
-    def get_title(self, document_url: str, xpath: str) -> str:
+    @override
+    def get_title(self, document_url: str, search_parameter: str) -> str:
         """Get the title of a document.
 
         Args:
             document_url: URL of the document page to fetch and parse.
-            xpath: The XPath expression to locate the document title in the DOM.
+            search_parameter: The XPath expression to locate the document title in the DOM.
 
         Returns:
             str: The title of the document, or an empty string if not found.
         """
-        return self._get_elements_text(document_url, xpath, "Failed to retrieve document title: %s")
+        return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document title: %s")
 
-    def get_subtitle(self, document_url: str, xpath: str) -> str:
+    @override
+    def get_subtitle(self, document_url: str, search_parameter: str) -> str:
         """Get the subtitle of a document.
 
         Args:
             document_url: URL of the document whose subtitle is requested.
-            xpath: The XPath expression to locate the document subtitle in the DOM.
+            search_parameter: The XPath expression to locate the document subtitle in the DOM.
 
         Returns:
             str: The subtitle of the document, or an empty string if not found.
         """
-        return self._get_elements_text(document_url, xpath, "Failed to retrieve document subtitle: %s")
+        return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document subtitle: %s")
 
-    def get_part_title(self, document_url: str, xpath: str) -> str:
+    @override
+    def get_part_title(self, document_url: str, search_parameter: str) -> str:
         """Get the title of a document part.
 
         Args:
             document_url: URL of the document page to fetch and parse.
-            xpath: The XPath expression to locate the document part title in the DOM.
+            search_parameter: The XPath expression to locate the document part title in the DOM.
 
         Returns:
             str: The title of the document part, or an empty string if not found.
         """
-        return self._get_elements_text(document_url, xpath, "Failed to retrieve document part title: %s")
+        return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document part title: %s")
 
-    def get_part_subtitle(self, document_url: str, xpath: str) -> str:
+    @override
+    def get_part_subtitle(self, document_url: str, search_parameter: str) -> str:
         """Get the subtitle of a document part.
 
         Args:
             document_url: URL of the document whose part subtitle is requested.
-            xpath: The XPath expression to locate the document part subtitle in the DOM.
+            search_parameter: The XPath expression to locate the document part subtitle in the DOM.
 
         Returns:
             str: The subtitle of the document part, or an empty string if not found.
         """
-        return self._get_elements_text(document_url, xpath, "Failed to retrieve document part subtitle: %s")
+        return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document part subtitle: %s")
 
     def _extract_uuids_from_divs_with_id_pattern(self, soup, search_pattern: dict | str) -> List[str]:
         """Extract UUIDs from div elements with id matching a pattern.
