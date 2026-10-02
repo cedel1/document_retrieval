@@ -84,24 +84,24 @@ def test_extract_uuids_from_divs_with_id_pattern_collects_unique_values(
     result = simple_dom_getter._extract_uuids_from_divs_with_id_pattern(soup, page_search_pattern)
 
     assert result == [
-        "11111111-1111-1111-1111-111111111111",
-        "22222222-2222-2222-2222-222222222222",
+        "uuid:11111111-1111-1111-1111-111111111111",
+        "uuid:22222222-2222-2222-2222-222222222222",
     ]
 
 
 def test_get_uuid_from_match_ignores_duplicates_and_non_matches(simple_dom_getter):
-    pattern = __import__("re").compile(r"page-id-uuid:([a-f0-9-]+)")
+    pattern = __import__("re").compile(r"page-id-(uuid:[a-f0-9-]+)")
 
     result = simple_dom_getter._get_uuid_from_match([], "page-id-uuid:33333333-3333-3333-3333-333333333333", pattern)
-    assert result == ["33333333-3333-3333-3333-333333333333"]
+    assert result == ["uuid:33333333-3333-3333-3333-333333333333"]
 
     repeated = simple_dom_getter._get_uuid_from_match(
         result, "page-id-uuid:33333333-3333-3333-3333-333333333333", pattern
     )
-    assert repeated == ["33333333-3333-3333-3333-333333333333"]
+    assert repeated == ["uuid:33333333-3333-3333-3333-333333333333"]
 
     no_match = simple_dom_getter._get_uuid_from_match(result, "not-a-page-id", pattern)
-    assert no_match == ["33333333-3333-3333-3333-333333333333"]
+    assert no_match == ["uuid:33333333-3333-3333-3333-333333333333"]
 
 
 def test_extract_uuids_returns_empty_when_soup_none(simple_dom_getter, page_search_pattern):
@@ -133,6 +133,6 @@ def test_extract_uuids_handles_duplicates_preserving_order(simple_dom_getter, pa
     result = simple_dom_getter._extract_uuids_from_divs_with_id_pattern(soup, page_search_pattern)
 
     assert result == [
-        "aaa11111-1111-1111-1111-111111111111",
-        "bbb22222-2222-2222-2222-222222222222",
+        "uuid:aaa11111-1111-1111-1111-111111111111",
+        "uuid:bbb22222-2222-2222-2222-222222222222",
     ]

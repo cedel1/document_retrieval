@@ -44,7 +44,7 @@ def test_dsmo_document_factory_extract_document_uuid_from_url_returns_uuid_for_l
 
     document_uuid = DSMODocumentFactory._extract_document_uuid_from_url(document_url, library)
 
-    assert document_uuid == "11111111-1111-1111-1111-111111111111"
+    assert document_uuid == "uuid:11111111-1111-1111-1111-111111111111"
 
 
 def test_dsmo_document_factory_extract_document_uuid_from_url_raises_when_missing_uuid():

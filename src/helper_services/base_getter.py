@@ -35,7 +35,7 @@ class BaseGetterMethod(ABC):
         raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)
 
     @abstractmethod
-    def get_title(self, document_url: str, search_parameter: str) -> str:
+    def get_title(self, document_url: str, search_parameter: str) -> str | Any:
         """Get the title of a document.
 
         Args:
@@ -48,7 +48,7 @@ class BaseGetterMethod(ABC):
         raise NotImplementedError(IMPLEMENT_IN_SUBCLASSES)
 
     @abstractmethod
-    def get_subtitle(self, document_url: str, search_parameter: str) -> str:
+    def get_subtitle(self, document_url: str, search_parameter: str) -> str | Any:
         """Get the subtitle of a document.
 
         Args:

@@ -18,7 +18,7 @@ def document_url():
 @pytest.fixture
 def page_pattern():
     """Search pattern for finding page UUIDs."""
-    return {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")}
+    return {"name": "div", "id": re.compile(r"page-id-(uuid:[a-f0-9-]+)")}
 
 
 @pytest.fixture
