@@ -22,7 +22,7 @@ def test_server_metadata_should_match_kramerius_5_configuration(kramerius_5_serv
     assert server.server_type == "kramerius"
     assert server.server_version == 5
     assert "dom_selenium" in server.document_info_methods
-    assert server.document_info_methods["dom_selenium"]["page_search"]["id"].pattern == r"page-id-uuid:([a-f0-9-]+)"
+    assert server.document_info_methods["dom_selenium"]["page_search"]["id"].pattern == r"page-id-(uuid:[a-f0-9-]+)"
 
 
 def test_get_document_pages_should_use_helper_class_and_returned_values(
