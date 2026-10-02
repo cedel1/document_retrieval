@@ -20,11 +20,11 @@ def dsmo_document_page():
 def test_get_page_url_and_download_url_are_built_correctly(dsmo_document_page):
     assert (
         DSMODocumentPage.get_page_url("page-uuid", "https://example.com/document")
-        == "https://example.com/document?page=uuid:page-uuid"
+        == "https://example.com/document?page=page-uuid"
     )
     assert (
         dsmo_document_page.get_page_download_url("page-uuid")
-        == "https://example.com/detail/search/zoomify/uuid:page-uuid/ImageProperties.xml"
+        == "https://example.com/detail/search/zoomify/page-uuid/ImageProperties.xml"
     )
 
 
@@ -47,8 +47,7 @@ def test_download_delegates_to_download_service(monkeypatch, dsmo_document_page)
 
     assert result is True
     assert (
-        captured["properties_download_url"]
-        == "https://example.com/detail/search/zoomify/uuid:page-uuid/ImageProperties.xml"
+        captured["properties_download_url"] == "https://example.com/detail/search/zoomify/page-uuid/ImageProperties.xml"
     )
     assert captured["output_base"] == str(page.output_base)
     assert captured["dezoomify_path"] == "/tool/dezoomify-rs"

@@ -74,7 +74,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         return []
 
     @override
-    def get_title(self, document_url: str, search_parameter: str) -> str:
+    def get_title(self, document_url: str, search_parameter: str) -> str | Any:
         """Get the title of a document.
 
         Args:
@@ -87,7 +87,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document title: %s")
 
     @override
-    def get_subtitle(self, document_url: str, search_parameter: str) -> str:
+    def get_subtitle(self, document_url: str, search_parameter: str) -> str | Any:
         """Get the subtitle of a document.
 
         Args:
@@ -100,7 +100,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document subtitle: %s")
 
     @override
-    def get_part_title(self, document_url: str, search_parameter: str) -> str:
+    def get_part_title(self, document_url: str, search_parameter: str) -> str | Any:
         """Get the title of a document part.
 
         Args:
@@ -113,7 +113,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document part title: %s")
 
     @override
-    def get_part_subtitle(self, document_url: str, search_parameter: str) -> str:
+    def get_part_subtitle(self, document_url: str, search_parameter: str) -> str | Any:
         """Get the subtitle of a document part.
 
         Args:

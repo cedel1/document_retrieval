@@ -24,10 +24,17 @@ def page_html():
 @pytest.fixture
 def page_search_pattern():
     """Search pattern for finding page UUIDs in HTML."""
-    return {"name": "div", "id": re.compile(r"page-id-uuid:([a-f0-9-]+)")}
+    return {"name": "div", "id": re.compile(r"page-id-(uuid:[a-f0-9-]+)")}
 
 
 @pytest.fixture
 def api_payload():
     """Sample API payload for testing REST API getter."""
-    return {"response": {"docs": ["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"]}}
+    return {
+        "response": {
+            "docs": [
+                {"PID": "uuid:11111111-1111-1111-1111-111111111111", "rels_ext_index": [0]},
+                {"PID": "uuid:22222222-2222-2222-2222-222222222222", "rels_ext_index": [1]},
+            ]
+        }
+    }

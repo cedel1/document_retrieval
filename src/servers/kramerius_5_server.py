@@ -21,30 +21,30 @@ class Kramerius5ServerType(BaseServerType):
     document_identifier_url_pattern = re.compile(r"(uuid:[a-f0-9-]+)")
 
     document_info_methods: dict[str, dict | str] = {
-        # "rest_api": {
-        #     "instance_params": {
-        #         "identifier_pattern": document_identifier_url_pattern,
-        #         "base_api_url": "https://digitalnistudovna.mo.gov.cz/search/api/v5.0/",
-        #         "document_api_url": (
-        #             "search?fl=PID,dostupnost,fedora.model,dc.title,datum_str,dc.creator,rels_ext_index,details,"
-        #             "dnnt-labels&q=PID:{}&sort=datum_str asc,fedora.model asc,dc.title "
-        #             "asc&rows=10000&start=0"
-        #         ),
-        #         "document_pages_api_url": (
-        #             "search?fl=PID,dostupnost,fedora.model,dc.title,dnnt-labels,details,rels_ext_index,model_path&"
-        #             'q=parent_pid:"{}"&rows=4000&start=0'
-        #         ),
-        #     },
-        #     "page_search": {
-        #         "page_object": ("response", "docs"),
-        #         "page_id": ("PID",),
-        #         "page_number": ("rels_ext_index", [0]),
-        #     },
-        #     "title_search": "root_title",
-        #     "subtitle_search": "title",
-        #     "part_title_search": "title",
-        #     "part_subtitle_search": ("details", "title"),
-        # },
+        "rest_api": {
+            "instance_params": {
+                "identifier_pattern": document_identifier_url_pattern,
+                "base_api_url": "https://digitalnistudovna.mo.gov.cz/search/api/v5.0/",
+                "document_api_url": (
+                    "search?fl=PID,dostupnost,fedora.model,dc.title,datum_str,dc.creator,rels_ext_index,details,"
+                    "dnnt-labels&q=PID:{}&sort=datum_str asc,fedora.model asc,dc.title "
+                    "asc&rows=10000&start=0"
+                ),
+                "document_pages_api_url": (
+                    "search?fl=PID,dostupnost,fedora.model,dc.title,dnnt-labels,details,rels_ext_index,model_path&"
+                    'q=parent_pid:"{}"&rows=4000&start=0'
+                ),
+            },
+            "page_search": {
+                "page_object": ("response", "docs"),
+                "page_id": ("PID",),
+                "page_number": ("rels_ext_index", [0]),
+            },
+            "title_search": ["response", "docs", [0], "dc.title"],
+            "subtitle_search": ["response", "docs", [0], "details", [0]],
+            "part_title_search": ["response", "docs", [0], "dc.title"],
+            "part_subtitle_search": ["response", "docs", [0], "details", [0]],
+        },
         "dom_selenium": {
             "instance_params": {},
             "page_search": {"name": "div", "id": re.compile(r"page-id-(uuid:[a-f0-9-]+)")},
