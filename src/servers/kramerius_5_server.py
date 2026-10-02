@@ -21,6 +21,8 @@ class Kramerius5ServerType(BaseServerType):
     document_identifier_url_pattern = re.compile(r"(uuid:[a-f0-9-]+)")
 
     document_info_methods: dict[str, dict | str] = {
+        # The rest_api makes assumptions about a concrete Kramerius server - revisit when more libraries/servers
+        # are added.
         "rest_api": {
             "instance_params": {
                 "identifier_pattern": document_identifier_url_pattern,

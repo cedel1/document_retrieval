@@ -2,7 +2,8 @@
 
 import re
 import urllib
-from typing import Any, override
+from typing import Any
+from typing_extensions import override
 
 import requests
 from document_retrieval import logger
