@@ -2,12 +2,13 @@
 
 import logging
 import re
-from typing import List, Any, Optional, override
+from typing import List, Any, Optional
 
 import requests
 from bs4 import BeautifulSoup
 from lxml import etree
 from requests import HTTPError
+from typing_extensions import override
 from src.helper_services.base_getter import BaseGetterMethod
 
 logger = logging.getLogger(__name__)

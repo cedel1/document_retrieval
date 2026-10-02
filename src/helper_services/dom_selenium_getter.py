@@ -1,10 +1,10 @@
 """DOM-based page discovery helpers for library HTML pages."""
 
 import logging
-from typing import override
 
 from bs4 import BeautifulSoup
 from requests import HTTPError
+from typing_extensions import override
 from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 
 MSG_SELENIUM_REQUEST_FAILED = "Selenium request failed: %s"
