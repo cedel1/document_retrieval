@@ -4,6 +4,7 @@ import os
 import sys
 from multiprocessing.pool import AsyncResult
 from unittest.mock import Mock, patch, MagicMock
+from argparse import ArgumentTypeError
 
 import pytest
 
@@ -11,7 +12,13 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Import the functions to test
-from document_retrieval import get_document_urls, get_library_document, preprocess_documents, process_library_documents
+from document_retrieval import (
+    get_document_urls,
+    get_library_document,
+    preprocess_documents,
+    process_library_documents,
+    is_positive_int,
+)
 from .fixtures import mock_library, mock_document, temp_documents_file
 
 
@@ -262,3 +269,36 @@ def test_process_library_documents_should_pass_additional_args_correctly(mock_li
 
     assert result is True
     mock_library.process_document.assert_called_once_with(mock_document, additional_args, "output")
+
+
+@pytest.mark.parametrize(
+    "input_value, expected_value",
+    [
+        (5, 5),
+        (1, 1),
+        ("5", 5),
+        ("1", 1),
+        (None, None),
+    ],
+)
+def test_is_positive_int_should_behave_correctly(input_value, expected_value):
+    """Tests that is_positive_int returns correct value when the validation succeeds."""
+    assert is_positive_int(input_value) == expected_value
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        "abc",
+        2.3,
+        -1,
+        -2.1,
+        0,
+    ],
+)
+def test_is_positive_int_should_raise_argument_type_exception_when_input_value_is_wrong(input_value):
+    """Tests that is_positive_int returns correct value what the validation does not succeed."""
+    with pytest.raises(ArgumentTypeError) as e:
+        is_positive_int(input_value)
+
+    assert str(e.value) == "Value must be a positive integer"
