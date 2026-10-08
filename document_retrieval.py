@@ -10,10 +10,9 @@ import argparse
 import logging
 from multiprocessing.pool import Pool, AsyncResult
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Any
 
 from pathvalidate.argparse import validate_filepath_arg
-
 from src.library_models.base.base_library import BaseLibrary
 from src.library_models.factories.library_factory import LibraryFactory
 
@@ -76,7 +75,10 @@ def get_library_document(document_url, output_dir, page_uuids, library_class):
 
 
 def preprocess_documents(
-    documents_file_path: Path, output_dir: str = "output", page_uuids: list[str] = None
+    documents_file_path: Path,
+    output_dir: str = "output",
+    page_uuids: list[str] = None,
+    processes: int | None = None,
 ) -> Dict[str, BaseLibrary]:
     """Read a file containing document URLs and build library objects.
 
@@ -91,6 +93,7 @@ def preprocess_documents(
         output_dir: Base output directory used when preprocessing documents.
         page_uuids: Optional list of page UUIDs to pass-through to preprocessing; if
             supplied, the preprocessing may attach only those pages.
+        processes: Number of concurrent processes to use for preprocessing.
 
     Returns:
         A dictionary mapping library string identifiers to BaseLibrary instances
@@ -98,7 +101,7 @@ def preprocess_documents(
     """
     libraries: Dict[str, BaseLibrary] = {}
 
-    with Pool(processes=2) as pool:
+    with Pool(processes=processes) as pool:  # default is None, which means use processor core number
         results: list[AsyncResult] = []
         for document_url in get_document_urls(documents_file_path):
             try:
@@ -157,6 +160,20 @@ def process_library_documents(library: BaseLibrary, additional_args: dict[str, l
     return len(failed_documents) == 0
 
 
+def is_positive_int(value: Any):
+    """Simple validator for the argparse"""
+    if value is None:
+        return None
+    try:
+        int_value = int(value)
+        if 0 < int_value == float(value):
+            return int_value
+    except (ValueError, TypeError):
+        pass
+
+    raise argparse.ArgumentTypeError("Value must be a positive integer")
+
+
 def main():
     """Main entry point: parse CLI args and process multiple documents.
 
@@ -176,6 +193,13 @@ def main():
     # so no need to validate - it either is or is not found
     parser.add_argument("--documents_file", help="Path to text file containing document URLs (one per line)")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose (debug) logging")
+    parser.add_argument(
+        "--processes",
+        default=None,
+        type=is_positive_int,
+        help="Number of processes to use where parallel processing can occur. The default is to use the same number as "
+        "processor cores.",
+    )
 
     # Parse known arguments to pass through to document_retrieval.py
     parser.add_argument("--pages", nargs="+", help="List of page UUIDs to download (overrides automatic discovery)")
@@ -215,7 +239,10 @@ def main():
     try:
         # Preprocess each document
         libraries: Dict[str, BaseLibrary] = preprocess_documents(
-            Path(args.documents_file), output_dir=args.output, page_uuids=args.pages
+            Path(args.documents_file),
+            output_dir=args.output,
+            page_uuids=args.pages,
+            processes=args.processes,
         )
         # Start processing per library
         for library in libraries.values():
