@@ -1,0 +1,7 @@
+- Should display a progressbar - not much is shown when debug is off
+- add more libraries (books)
+- save more info about a document - what type it is (book, periodical etc.), is it a part of a collection (of books or another issue of a periodical)
+- add browser selection capability (when using Selenium)
+- add capability to use settings file instead of specifying everything on commandline
+- fix too short a name (page filename does not contain full first part of uuid)
+- make website certificate validation the default and add parameter to disable it. But use it where it works and don't forget dezoomify-rs
