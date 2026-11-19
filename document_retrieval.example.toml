@@ -20,7 +20,8 @@ output = "output"
 # Page UUIDs to download instead of automatic discovery
 # pages = ["uuid:11111111-1111-1111-1111-111111111111"]
 
-# dezoomify-rs executable (default: "dezoomify-rs") and extra arguments for it
+# dezoomify-rs executable (default: "dezoomify-rs", looked up on PATH) and extra arguments for it.
+# A path with a directory part, e.g. "./bin/dezoomify-rs", is relative to this file's directory.
 # dezoomify_path = "/usr/local/bin/dezoomify-rs"
 # dezoomify_args = ["--largest"]
 

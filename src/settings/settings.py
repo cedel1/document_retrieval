@@ -8,13 +8,16 @@ The configuration file mirrors the command-line options. Values are resolved wit
 3. top-level keys of the config file,
 4. built-in defaults.
 
-Relative paths written inside the config file are resolved against the directory of the config file.
+Relative paths written inside the config file are resolved against the directory of the config file. This
+includes ``dezoomify_path`` when it has a directory part; a bare command name such as ``dezoomify-rs`` is kept
+for ``PATH`` lookup.
 """
 
 from __future__ import annotations
 
 import argparse
 import tomllib
+from functools import partial
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
@@ -57,8 +60,7 @@ def is_positive_int(value: Any):
     raise argparse.ArgumentTypeError("Value must be a positive integer")
 
 
-# pylint: disable=unused-argument
-def _validate_str(key: str, value: Any, base_dir: Path) -> str:
+def _validate_str(key: str, value: Any) -> str:
     """Validate a non-empty string value."""
     if not isinstance(value, str) or not value.strip():
         raise ConfigError(f"'{key}' must be a non-empty string")
@@ -67,9 +69,22 @@ def _validate_str(key: str, value: Any, base_dir: Path) -> str:
 
 def _validate_path(key: str, value: Any, base_dir: Path) -> str:
     """Validate a path string and resolve a relative path against ``base_dir``."""
-    _validate_str(key, value, base_dir)
+    _validate_str(key, value)
     path = Path(value).expanduser()
     return str(path if path.is_absolute() else base_dir / path)
+
+
+def _validate_path_or_bare_name(key: str, value: Any, base_dir: Path) -> str:
+    """Validate a path that may also be a bare name, and resolve a relative path against ``base_dir``.
+
+    A bare name (no directory part, e.g. ``dezoomify-rs``) is kept unchanged so it can be looked up later
+    (for example on ``PATH``). ``~`` is expanded and a relative path with a directory part
+    (e.g. ``./bin/dezoomify-rs``) becomes relative to the config file's directory. Existence is not checked.
+    """
+    _validate_str(key, value)
+    if not value.startswith("~") and Path(value).name == value:
+        return value
+    return _validate_path(key, value, base_dir)
 
 
 def _validate_output(key: str, value: Any, base_dir: Path) -> str:
@@ -82,7 +97,7 @@ def _validate_output(key: str, value: Any, base_dir: Path) -> str:
     return path
 
 
-def _validate_processes(key: str, value: Any, base_dir: Path) -> int:
+def _validate_processes(key: str, value: Any) -> int:
     """Validate the number of processes using the same rules as the ``--processes`` option."""
     if isinstance(value, bool) or not isinstance(value, int):
         raise ConfigError(f"'{key}' must be a positive integer")
@@ -92,41 +107,42 @@ def _validate_processes(key: str, value: Any, base_dir: Path) -> int:
         raise ConfigError(f"'{key}' must be a positive integer") from e
 
 
-def _validate_bool(key: str, value: Any, base_dir: Path) -> bool:
+def _validate_bool(key: str, value: Any) -> bool:
     """Validate a boolean value."""
     if not isinstance(value, bool):
         raise ConfigError(f"'{key}' must be true or false")
     return value
 
 
-def _validate_str_list(key: str, value: Any, base_dir: Path) -> list[str]:
+def _validate_str_list(key: str, value: Any) -> list[str]:
     """Validate a list of strings."""
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise ConfigError(f"'{key}' must be a list of strings")
     return list(value)
 
 
-def _validate_pages(key: str, value: Any, base_dir: Path) -> list[str]:
+def _validate_pages(key: str, value: Any) -> list[str]:
     """Validate a non-empty list of page identifiers (the ``--pages`` option requires at least one)."""
-    pages = _validate_str_list(key, value, base_dir)
+    pages = _validate_str_list(key, value)
     if not pages:
         raise ConfigError(f"'{key}' must contain at least one item")
     return pages
 
 
-# pylint: enable=unused-argument
+def _top_level_validators(base_dir: Path) -> dict[str, Callable[[str, Any], Any]]:
+    """Return the validators for top-level keys; path validators are bound to ``base_dir``."""
+    return {
+        "documents_file": partial(_validate_path, base_dir=base_dir),
+        "output": partial(_validate_output, base_dir=base_dir),
+        "processes": _validate_processes,
+        "verbose": _validate_bool,
+        "pages": _validate_pages,
+        "dezoomify_path": partial(_validate_path_or_bare_name, base_dir=base_dir),
+        "dezoomify_args": _validate_str_list,
+    }
 
-_TOP_LEVEL_VALIDATORS: dict[str, Callable[[str, Any, Path], Any]] = {
-    "documents_file": _validate_path,
-    "output": _validate_output,
-    "processes": _validate_processes,
-    "verbose": _validate_bool,
-    "pages": _validate_pages,
-    "dezoomify_path": _validate_str,
-    "dezoomify_args": _validate_str_list,
-}
 
-_LIBRARY_VALIDATORS: dict[str, Callable[[str, Any, Path], Any]] = {
+_LIBRARY_VALIDATORS: dict[str, Callable[[str, Any], Any]] = {
     "dezoomify_args": _validate_str_list,
 }
 
@@ -176,20 +192,21 @@ def load_config(config_path: Path, known_libraries: Iterable[str]) -> dict[str, 
         raise ConfigError(f"Cannot read config file {config_path}: {e}") from e
 
     base_dir = config_path.resolve().parent
+    validators = _top_level_validators(base_dir)
     config: dict[str, Any] = {}
 
     for key, value in raw.items():
         if key == LIBRARY_TABLE_KEY:
-            config[LIBRARY_TABLE_KEY] = _load_library_tables(value, set(known_libraries), base_dir)
-        elif key in _TOP_LEVEL_VALIDATORS:
-            config[key] = _TOP_LEVEL_VALIDATORS[key](key, value, base_dir)
+            config[LIBRARY_TABLE_KEY] = _load_library_tables(value, set(known_libraries))
+        elif key in validators:
+            config[key] = validators[key](key, value)
         else:
             raise ConfigError(f"Unknown config key: '{key}'")
 
     return config
 
 
-def _load_library_tables(value: Any, known_libraries: set[str], base_dir: Path) -> dict[str, dict[str, Any]]:
+def _load_library_tables(value: Any, known_libraries: set[str]) -> dict[str, dict[str, Any]]:
     """Validate the ``[library]`` table and every ``[library.<name>]`` table inside it."""
     if not isinstance(value, dict):
         raise ConfigError(f"'{LIBRARY_TABLE_KEY}' must be a table")
@@ -204,7 +221,7 @@ def _load_library_tables(value: Any, known_libraries: set[str], base_dir: Path) 
         for key, item in table.items():
             if key not in LIBRARY_KEYS:
                 raise ConfigError(f"Unknown key '{key}' in [{LIBRARY_TABLE_KEY}.{library_name}]")
-            libraries[library_name][key] = _LIBRARY_VALIDATORS[key](f"{library_name}.{key}", item, base_dir)
+            libraries[library_name][key] = _LIBRARY_VALIDATORS[key](f"{library_name}.{key}", item)
     return libraries
 
 
