@@ -1,6 +1,8 @@
 """Shared pytest fixtures for document_retrieval tests."""
 
-from unittest.mock import Mock
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -40,3 +42,23 @@ def temp_documents_file(tmp_path):
         "https://example.com/doc4\n"
     )
     return documents_file
+
+
+@pytest.fixture
+def main_env(tmp_path):
+    """Fixture isolating main(): processing is mocked and the script directory is a temporary directory."""
+    library = Mock()
+    library.library_name = "Library_DSMO"
+    library.documents = []
+
+    def write_config(content: str, name: str = "document_retrieval.toml") -> Path:
+        config_path = tmp_path / name
+        config_path.write_text(content, encoding="UTF-8")
+        return config_path
+
+    with (
+        patch("document_retrieval.SCRIPT_DIR", tmp_path),
+        patch("document_retrieval.preprocess_documents", return_value={"lib": library}) as preprocess,
+        patch("document_retrieval.process_library_documents", return_value=True) as process,
+    ):
+        yield SimpleNamespace(tmp_path=tmp_path, preprocess=preprocess, process=process, write_config=write_config)

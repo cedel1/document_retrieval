@@ -145,3 +145,6 @@ debug_dom.html
 /.pydevproject
 /graphs/
 documents.txt
+
+# Local configuration file (copy document_retrieval.example.toml)
+document_retrieval.toml

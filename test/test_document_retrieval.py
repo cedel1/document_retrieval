@@ -3,8 +3,8 @@
 import os
 import sys
 from multiprocessing.pool import AsyncResult
+from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from argparse import ArgumentTypeError
 
 import pytest
 
@@ -17,9 +17,12 @@ from document_retrieval import (
     get_library_document,
     preprocess_documents,
     process_library_documents,
-    is_positive_int,
+    build_parser,
+    build_additional_args,
+    main,
 )
-from .fixtures import mock_library, mock_document, temp_documents_file
+from src.settings.settings import ConfigError, Settings
+from .fixtures import mock_library, mock_document, temp_documents_file, main_env
 
 
 def test_get_document_urls_should_ignore_comments_and_whitespace(temp_documents_file):
@@ -270,33 +273,115 @@ def test_process_library_documents_should_pass_additional_args(mock_library, moc
 
 
 @pytest.mark.parametrize(
-    "input_value, expected_value",
-    [
-        (5, 5),
-        (1, 1),
-        ("5", 5),
-        ("1", 1),
-        (None, None),
-    ],
+    "option",
+    ["config", "documents_file", "verbose", "processes", "pages", "output", "dezoomify_path", "dezoomify_args"],
 )
-def test_is_positive_int_should_return_value_for_valid_input(input_value, expected_value):
-    """Tests that is_positive_int returns correct value when the validation succeeds."""
-    assert is_positive_int(input_value) == expected_value
+def test_build_parser_should_default_config_aware_options_to_none(option):
+    """Test that options also settable in the config file default to None (not given)."""
+    args = build_parser().parse_args([])
+
+    assert getattr(args, option) is None
 
 
-@pytest.mark.parametrize(
-    "input_value",
-    [
-        "abc",
-        2.3,
-        -1,
-        -2.1,
-        0,
-    ],
-)
-def test_is_positive_int_should_raise_for_invalid_input(input_value):
-    """Tests that is_positive_int returns correct value what the validation does not succeed."""
-    with pytest.raises(ArgumentTypeError) as e:
-        is_positive_int(input_value)
+def test_build_parser_should_parse_config_option():
+    """Test that --config is parsed."""
+    assert build_parser().parse_args(["--config", "x.toml"]).config == "x.toml"
 
-    assert str(e.value) == "Value must be a positive integer"
+
+def test_build_additional_args_should_include_dezoomify_path_and_args():
+    """Test that dezoomify path and args are always present."""
+    settings = Settings(dezoomify_path="/dz", dezoomify_args=["--a"])
+
+    assert build_additional_args(settings, "Lib") == {"dezoomify-path": "/dz", "dezoomify-args": ["--a"]}
+
+
+def test_build_additional_args_should_include_pages_when_set():
+    """Test that pages are passed through when set."""
+    assert build_additional_args(Settings(pages=["p1"]), "Lib")["--pages"] == ["p1"]
+
+
+def test_build_additional_args_should_use_library_specific_dezoomify_args():
+    """Test that library-specific dezoomify args are used for the matching library."""
+    settings = Settings(dezoomify_args=["--g"], library_dezoomify_args={"Lib": ["--l"]})
+
+    assert build_additional_args(settings, "Lib")["dezoomify-args"] == ["--l"]
+
+
+def test_main_should_use_values_from_explicit_config_file(main_env):
+    """Test that main takes documents_file, output and processes from the config file."""
+    config = main_env.write_config(f'documents_file = "docs.txt"\noutput = "out"\nprocesses = 2\n')
+
+    main(["--config", str(config)])
+
+    main_env.preprocess.assert_called_once_with(
+        main_env.tmp_path / "docs.txt", output_dir=str(main_env.tmp_path / "out"), page_uuids=None, processes=2
+    )
+
+
+def test_main_should_prefer_cli_options_over_config_file(main_env):
+    """Test that CLI options override the config file."""
+    config = main_env.write_config('documents_file = "docs.txt"\nprocesses = 2\n')
+    cli_output = str(main_env.tmp_path / "cli_out")
+
+    main(["--config", str(config), "--documents_file", "cli.txt", "--output", cli_output, "--processes", "4"])
+
+    main_env.preprocess.assert_called_once_with(Path("cli.txt"), output_dir=cli_output, page_uuids=None, processes=4)
+
+
+def test_main_should_auto_load_config_from_script_directory(main_env):
+    """Test that document_retrieval.toml next to the script is used when --config is absent."""
+    main_env.write_config('documents_file = "docs.txt"\noutput = "out"\n')
+
+    main([])
+
+    assert main_env.preprocess.call_args.args[0] == main_env.tmp_path / "docs.txt"
+
+
+def test_main_should_use_cli_only_when_default_config_is_missing(main_env):
+    """Test that a missing auto-discovered config is ignored."""
+    main(["--documents_file", "cli.txt", "--output", str(main_env.tmp_path / "out")])
+
+    assert main_env.preprocess.call_args.args[0] == Path("cli.txt")
+
+
+def test_main_should_raise_when_explicit_config_is_missing(main_env):
+    """Test that a missing --config file stops execution with a ConfigError."""
+    missing_path = str(main_env.tmp_path / "missing.toml")
+
+    with pytest.raises(ConfigError, match="Config file not found"):
+        main(["--config", missing_path])
+
+    main_env.preprocess.assert_not_called()
+
+
+def test_main_should_raise_when_config_is_invalid(main_env):
+    """Test that an invalid config stops execution with a ConfigError."""
+    config = main_env.write_config("unknown_key = 1")
+
+    config_arg = str(config)
+
+    with pytest.raises(ConfigError, match="Unknown config key"):
+        main(["--config", config_arg])
+
+    main_env.preprocess.assert_not_called()
+
+
+def test_main_should_exit_when_documents_file_is_not_set(main_env):
+    """Test that main exits with an error when no documents file is given anywhere."""
+    with pytest.raises(SystemExit):
+        main([])
+
+    main_env.preprocess.assert_not_called()
+
+
+def test_main_should_pass_library_specific_dezoomify_args_to_processing(main_env):
+    """Test that [library.<library_name>] dezoomify_args reach the library processing."""
+    config = main_env.write_config(
+        'documents_file = "docs.txt"\noutput = "out"\ndezoomify_args = ["--g"]\n'
+        '[library.Library_DSMO]\ndezoomify_args = ["--l"]\n'
+    )
+
+    main(["--config", str(config)])
+
+    additional_args = main_env.process.call_args.args[1]
+    assert additional_args == {"dezoomify-path": "dezoomify-rs", "dezoomify-args": ["--l"]}

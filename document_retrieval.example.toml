@@ -1,0 +1,29 @@
+# Example configuration for document_retrieval.py.
+# Copy to document_retrieval.toml (next to document_retrieval.py) to have it loaded automatically,
+# or pass it explicitly with --config PATH. Every key is optional.
+#
+# Precedence: command line > [library.<library_name>] > top-level keys > built-in defaults.
+# Unknown keys or invalid values are errors. Relative paths are relative to this file's directory.
+
+# File with document URLs, one per line (URLs do not belong in this config file)
+documents_file = "documents.txt"
+
+# Base output directory for downloaded images (default: "output")
+output = "output"
+
+# Number of processes for parallel processing (default: number of processor cores)
+# processes = 4
+
+# Enable debug logging (default: false)
+# verbose = true
+
+# Page UUIDs to download instead of automatic discovery
+# pages = ["uuid:11111111-1111-1111-1111-111111111111"]
+
+# dezoomify-rs executable (default: "dezoomify-rs") and extra arguments for it
+# dezoomify_path = "/usr/local/bin/dezoomify-rs"
+# dezoomify_args = ["--largest"]
+
+# Library-dependent settings. The table name must equal the library_name of the library exactly.
+# [library.Library_DSMO]
+# dezoomify_args = ["--max-width", "4000"]

@@ -10,6 +10,7 @@ Python tooling for retrieving high-resolution scans from Kramerius-based digital
 - Automatic page discovery for Kramerius 5 repositories
 - Per-library output layout under a shared base output directory
 - Custom dezoomify-rs binary path and extra dezoomify arguments
+- Optional TOML config file holding the command-line values, with library-dependent settings
 - Comprehensive logging support with `--verbose`
 - Selenium-based page discovery hooks for JavaScript-rendered content
 
@@ -46,12 +47,50 @@ python document_retrieval.py --documents_file documents.txt
 
 ### Arguments
 
-- `--documents_file` (required): Path to a file containing document URLs, one per line
+- `--config`: Path to a TOML config file (see [Configuration file](#configuration-file)); a missing file is an error
+- `--documents_file` (required on the command line or in the config file): Path to a file containing document URLs, one per line
 - `--verbose`: Enable debug logging
+- `--processes`: Number of processes for parallel processing (default: number of processor cores)
 - `--output`: Base output directory for downloaded files (default: `output`)
 - `--dezoomify-path`: Path to the `dezoomify-rs` executable (default: `dezoomify-rs`)
 - `--dezoomify-args`: Additional arguments to pass through to `dezoomify-rs`; pass them as separate CLI values
 - `--pages`: Optional list of page UUIDs to download (overrides automatic page discovery)
+
+## Configuration file
+
+Every option can also be stored in an optional [TOML](https://toml.io) file. Without `--config`, the file
+`document_retrieval.toml` in the same directory as `document_retrieval.py` is loaded if it exists (otherwise it is
+silently ignored and only command-line options are used). `--config PATH` loads that file instead and fails if it
+does not exist. Copy `document_retrieval.example.toml` to `document_retrieval.toml` as a starting point; the
+latter is git-ignored.
+
+```toml
+documents_file = "documents.txt"
+output = "output"
+processes = 4
+verbose = false
+dezoomify_path = "dezoomify-rs"
+dezoomify_args = ["--largest"]
+
+# Library-dependent settings; the table name is the exact library_name of the library
+[library.Library_DSMO]
+dezoomify_args = ["--max-width", "4000"]
+```
+
+**Precedence** (highest first): command line > `[library.<library_name>]` table > top-level config keys > built-in
+defaults. A list given on the command line (`--pages`, `--dezoomify-args`) *replaces* the config list; a
+`--dezoomify-args` value also overrides library tables. To change a value for one run, give it on the command line;
+there are no per-library command-line options.
+
+**Keys**: top-level `documents_file`, `output`, `processes`, `verbose`, `pages`, `dezoomify_path`,
+`dezoomify_args`; per-library tables currently accept only `dezoomify_args`.
+
+**Validation** is strict: unknown keys, unknown library tables, unknown keys inside a library table and invalid
+values or types (checked with the same rules as the command-line options) stop the program with an error.
+
+**Paths** inside the config file (`documents_file`, `output`) are relative to the config file's directory, while
+paths given on the command line are relative to the current directory. Document URLs always stay in the
+`documents_file`, never in the config.
 
 ## Example input file
 
@@ -112,6 +151,7 @@ python document_retrieval.py \
 .
 ├── document_retrieval.py          # CLI entry point
 ├── documents.txt                  # example input file
+├── document_retrieval.example.toml # example config file
 ├── requirements.txt               # Python dependencies
 ├── pyproject.toml                 # project configuration
 ├── src/
@@ -119,6 +159,7 @@ python document_retrieval.py \
 │   ├── library_models/            # URL -> library model mapping
 │   ├── servers/                   # server-specific page discovery logic
 │   ├── services/                  # shared helpers such as URL parsing
+│   ├── settings/                  # config file loading and settings resolution
 │   └── helpers/                   # utility functions (e.g., singleton pattern)
 ├── test/                          # comprehensive test suite
 │   ├── fixtures.py                # shared test fixtures
@@ -126,7 +167,8 @@ python document_retrieval.py \
 │   ├── helper_services/           # tests for helper services
 │   ├── library_models/            # tests for library models
 │   ├── servers/                   # tests for server implementations
-│   └── services/                  # tests for shared services
+│   ├── services/                  # tests for shared services
+│   └── settings/                  # tests for config file and settings
 └── output/                        # default root directory for downloaded artifacts
 ```
 
@@ -162,6 +204,7 @@ pytest --cov=src --cov=test
 - `test/library_models/` - Tests for library model implementations
 - `test/servers/` - Tests for server-specific discovery logic
 - `test/services/` - Tests for shared services
+- `test/settings/` - Tests for config file loading and settings resolution
 - `test/test_document_retrieval.py` - Tests for the main CLI entry point
 
 ### Test naming convention
