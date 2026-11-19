@@ -17,7 +17,7 @@ def dsmo_document_page():
     )
 
 
-def test_get_page_url_and_download_url_are_built_correctly(dsmo_document_page):
+def test_get_page_url_should_build_correct_url_and_download_url(dsmo_document_page):
     assert (
         DSMODocumentPage.get_page_url("page-uuid", "https://example.com/document")
         == "https://example.com/document?page=page-uuid"
@@ -28,7 +28,7 @@ def test_get_page_url_and_download_url_are_built_correctly(dsmo_document_page):
     )
 
 
-def test_download_delegates_to_download_service(monkeypatch, dsmo_document_page):
+def test_download_should_delegate_to_download_service(monkeypatch, dsmo_document_page):
     captured = {}
 
     def fake_retrieve(properties_download_url, output_base, dezoomify_path, dezoomify_args):

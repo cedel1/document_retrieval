@@ -6,7 +6,7 @@ from src.library_models.base.base_document import BaseDocument
 from test.library_models.base.fixtures import dummy_page_class
 
 
-def test_base_document_initializes_pages_and_output_directory(dummy_page_class):
+def test_init_should_set_pages_and_output_directory(dummy_page_class):
     page_one = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, "tmp")
     page_two = dummy_page_class("page-2", "https://example.com/page-2", "https://example.com/detail", 2, "tmp")
 
@@ -22,7 +22,7 @@ def test_base_document_initializes_pages_and_output_directory(dummy_page_class):
     assert page_one.output_dir == document.output_dir
 
 
-def test_base_document_add_page_updates_directory_and_properties_path(tmp_path, dummy_page_class):
+def test_add_page_should_update_directory_and_properties_path(tmp_path, dummy_page_class):
     page = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(tmp_path))
     document = BaseDocument("doc-123", output_dir=str(tmp_path / "doc-123"))
 
@@ -32,7 +32,7 @@ def test_base_document_add_page_updates_directory_and_properties_path(tmp_path, 
     assert page.output_dir == document.output_dir
 
 
-def test_base_document_create_properties_file_writes_expected_content(tmp_path, dummy_page_class):
+def test_create_properties_file_should_write_expected_content(tmp_path, dummy_page_class):
     doc_dir = tmp_path / "doc-123"
     page = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(doc_dir))
     document = BaseDocument("doc-123", output_dir=str(doc_dir), pages=[page])

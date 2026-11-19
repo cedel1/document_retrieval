@@ -14,7 +14,7 @@ def dom_selenium_getter():
     return DomSeleniumGetterMethod({})
 
 
-def test_get_pages_uses_selenium_html_and_passes_expected_attributes(
+def test_get_pages_should_use_selenium_html_and_pass_expected_attributes(
     monkeypatch, dom_selenium_getter, page_html, page_search_pattern
 ):
     captured = {}
@@ -45,9 +45,7 @@ def test_get_pages_uses_selenium_html_and_passes_expected_attributes(
     assert captured["soup"] is not None
 
 
-def test_get_pages_returns_empty_list_when_no_matching_ids_are_present(
-    monkeypatch, dom_selenium_getter, page_search_pattern
-):
+def test_get_pages_should_return_empty_list_when_no_matching_ids(monkeypatch, dom_selenium_getter, page_search_pattern):
     monkeypatch.setattr(
         dom_selenium_getter,
         "_try_selenium_dom_request",
@@ -57,7 +55,7 @@ def test_get_pages_returns_empty_list_when_no_matching_ids_are_present(
     assert dom_selenium_getter.get_pages("https://example.com/document", page_search_pattern) == []
 
 
-def test_try_selenium_dom_request_returns_empty_string_when_selenium_import_fails(monkeypatch, dom_selenium_getter):
+def test_try_selenium_dom_request_should_return_empty_string_on_import_failure(monkeypatch, dom_selenium_getter):
     real_import = __import__
 
     def fake_import(name, *args, **kwargs):
@@ -70,7 +68,7 @@ def test_try_selenium_dom_request_returns_empty_string_when_selenium_import_fail
     assert dom_selenium_getter._try_selenium_dom_request("https://example.com/document") == ""
 
 
-def test_try_selenium_dom_request_returns_empty_string_when_driver_creation_fails(monkeypatch, dom_selenium_getter):
+def test_try_selenium_dom_request_should_return_empty_string_on_driver_failure(monkeypatch, dom_selenium_getter):
     class FakeOptions:
         def add_argument(self, argument):
             pass
@@ -96,7 +94,7 @@ def test_try_selenium_dom_request_returns_empty_string_when_driver_creation_fail
     assert dom_selenium_getter._try_selenium_dom_request("https://example.com/document") == ""
 
 
-def test_setup_selenium_options_configures_headless_chrome(monkeypatch):
+def test_setup_selenium_options_should_configure_headless_chrome(monkeypatch):
     class FakeOptions:
         def __init__(self):
             self.args = []
@@ -126,7 +124,7 @@ def test_setup_selenium_options_configures_headless_chrome(monkeypatch):
     assert "--disable-dev-shm-usage" in options.args
 
 
-def test_try_selenium_dom_request_creates_driver_waits_and_quits(monkeypatch):
+def test_try_selenium_dom_request_should_create_driver_wait_and_quit(monkeypatch):
     class FakeDriver:
         def __init__(self):
             self.page_source = "<html><body>Rendered</body></html>"
@@ -212,7 +210,7 @@ def test_try_selenium_dom_request_creates_driver_waits_and_quits(monkeypatch):
     assert ("quit",) in fake_driver.calls
 
 
-def test_try_selenium_dom_request_handles_wait_timeout_and_returns_page_source(monkeypatch):
+def test_try_selenium_dom_request_should_handle_wait_timeout_and_return_page_source(monkeypatch):
     """If WebDriverWait.until raises, method should proceed and return page source."""
 
     class FakeDriver:
@@ -300,7 +298,7 @@ def test_try_selenium_dom_request_handles_wait_timeout_and_returns_page_source(m
     assert result == "<html><body>RenderedTimeout</body></html>"
 
 
-def test_try_selenium_dom_request_returns_empty_when_driver_get_raises(monkeypatch):
+def test_try_selenium_dom_request_should_return_empty_string_when_driver_get_raises(monkeypatch):
     """If driver.get raises an exception, the method should catch and return empty string."""
 
     class FakeDriver:
@@ -366,7 +364,7 @@ def test_try_selenium_dom_request_returns_empty_when_driver_get_raises(monkeypat
     assert result == ""
 
 
-def test_setup_selenium_options_behavior_depends_on_environment():
+def test_setup_selenium_options_should_return_options_or_raise_runtime_error():
     """If selenium is available, _setup_selenium_options should return an options object
     with add_argument method. If selenium is missing, it should raise RuntimeError.
     """

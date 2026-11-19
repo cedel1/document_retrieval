@@ -35,7 +35,7 @@ def test_get_document_urls_should_ignore_comments_and_whitespace(temp_documents_
     ]
 
 
-def test_get_document_urls_should_handle_empty_file(tmp_path):
+def test_get_document_urls_should_return_empty_list_for_empty_file(tmp_path):
     """Test that get_document_urls handles empty files."""
     empty_file = tmp_path / "empty.txt"
     empty_file.write_text("")
@@ -44,7 +44,7 @@ def test_get_document_urls_should_handle_empty_file(tmp_path):
     assert urls == []
 
 
-def test_get_document_urls_should_handle_only_comments(tmp_path):
+def test_get_document_urls_should_return_empty_list_for_only_comments(tmp_path):
     """Test that get_document_urls handles files with only comments."""
     comments_file = tmp_path / "comments.txt"
     comments_file.write_text("# comment 1\n# comment 2\n")
@@ -53,7 +53,7 @@ def test_get_document_urls_should_handle_only_comments(tmp_path):
     assert urls == []
 
 
-def test_get_document_urls_should_ignore_empty_lines(tmp_path):
+def test_get_document_urls_should_skip_empty_lines(tmp_path):
     """Test that get_document_urls ignores empty lines."""
     comments_file = tmp_path / "comments.txt"
     comments_file.write_text("url 1\n\n# comment 2\n")
@@ -62,7 +62,7 @@ def test_get_document_urls_should_ignore_empty_lines(tmp_path):
     assert urls == ["url 1"]
 
 
-def test_get_library_document_should_preprocess_document_successfully(mock_library, mock_document):
+def test_get_library_document_should_return_document_on_success(mock_library, mock_document):
     """Test that get_library_document successfully preprocesses a document."""
     # Create a mock library class that returns our mock instance when instantiated
     mock_library_class = Mock()
@@ -83,7 +83,7 @@ def test_get_library_document_should_preprocess_document_successfully(mock_libra
     )
 
 
-def test_get_library_document_should_raise_value_error_on_preprocessing_failure():
+def test_get_library_document_should_raise_value_error_on_failure():
     """Test that get_library_document raises ValueError on preprocessing failure."""
     # Create a mock library class that raises ValueError when preprocess_document_from_url is called
     mock_library_class = Mock()
@@ -96,9 +96,7 @@ def test_get_library_document_should_raise_value_error_on_preprocessing_failure(
         get_library_document("https://example.com/doc", "output", None, mock_library_class)
 
 
-def test_preprocess_documents_should_use_multiprocessing_to_process_documents(
-    temp_documents_file, mock_library, mock_document
-):
+def test_preprocess_documents_should_use_multiprocessing_pool(temp_documents_file, mock_library, mock_document):
     """Test that preprocess_documents uses multiprocessing to process documents."""
     mock_library.preprocess_document_from_url.return_value = mock_document
     mock_library.__str__ = Mock(return_value="MockLibrary")
@@ -135,7 +133,7 @@ def test_preprocess_documents_should_use_multiprocessing_to_process_documents(
         (ValueError, "Invalid result format"),
     ],
 )
-def test_preprocess_documents_should_handle_caught_exceptions_gracefully(
+def test_preprocess_documents_should_handle_exceptions_gracefully(
     temp_documents_file, mock_library, exception_type, exception_message
 ):
     """Test that preprocess_documents handles caught exceptions from result.get() gracefully."""
@@ -175,7 +173,7 @@ def test_preprocess_documents_should_handle_caught_exceptions_gracefully(
                     assert "Failed to retrieve result:" in str(call[0][0])
 
 
-def test_preprocess_documents_should_propagate_uncaught_exceptions(temp_documents_file, mock_library):
+def test_preprocess_documents_should_propagate_unexpected_exceptions(temp_documents_file, mock_library):
     """Test that preprocess_documents propagates exceptions that are not TimeoutError or ValueError."""
     mock_library.__str__ = Mock(return_value="MockLibrary")
 
@@ -197,7 +195,7 @@ def test_preprocess_documents_should_propagate_uncaught_exceptions(temp_document
                 preprocess_documents(temp_documents_file, "output", None)
 
 
-def test_preprocess_documents_should_handle_library_creation_failure_gracefully(temp_documents_file):
+def test_preprocess_documents_should_handle_library_failure_gracefully(temp_documents_file):
     """Test that preprocess_documents handles library creation failures gracefully."""
     with patch("document_retrieval.LibraryFactory") as mock_factory:
         mock_factory.from_url.side_effect = ValueError("Invalid URL")
@@ -211,7 +209,7 @@ def test_preprocess_documents_should_handle_library_creation_failure_gracefully(
             assert libraries == {}
 
 
-def test_process_library_documents_should_return_true_when_all_documents_succeed(mock_library, mock_document):
+def test_process_library_documents_should_return_true_on_success(mock_library, mock_document):
     """Test that process_library_documents returns True when all documents succeed."""
     mock_library.documents = [mock_document]
     mock_library.process_document = Mock()
@@ -222,7 +220,7 @@ def test_process_library_documents_should_return_true_when_all_documents_succeed
     mock_library.process_document.assert_called_once_with(mock_document, {}, "output")
 
 
-def test_process_library_documents_should_return_false_when_document_fails(mock_library, mock_document):
+def test_process_library_documents_should_return_false_on_document_failure(mock_library, mock_document):
     """Test that process_library_documents returns False when a document fails."""
     mock_library.documents = [mock_document]
     mock_library.process_document.side_effect = Exception("Processing error")
@@ -232,7 +230,7 @@ def test_process_library_documents_should_return_false_when_document_fails(mock_
     assert result is False
 
 
-def test_process_library_documents_should_return_false_when_some_documents_fail(mock_library):
+def test_process_library_documents_should_return_false_on_partial_failure(mock_library):
     """Test that process_library_documents returns False when some documents fail."""
     doc1 = Mock()
     doc2 = Mock()
@@ -249,7 +247,7 @@ def test_process_library_documents_should_return_false_when_some_documents_fail(
     assert result is False
 
 
-def test_process_library_documents_should_return_true_for_empty_library(mock_library):
+def test_process_library_documents_should_return_true_for_empty_documents(mock_library):
     """Test that process_library_documents returns True for empty library."""
     mock_library.documents = []
 
@@ -258,7 +256,7 @@ def test_process_library_documents_should_return_true_for_empty_library(mock_lib
     assert result is True
 
 
-def test_process_library_documents_should_pass_additional_args_correctly(mock_library, mock_document):
+def test_process_library_documents_should_pass_additional_args(mock_library, mock_document):
     """Test that process_library_documents passes additional args correctly."""
     mock_library.documents = [mock_document]
     mock_library.process_document = Mock()
@@ -281,7 +279,7 @@ def test_process_library_documents_should_pass_additional_args_correctly(mock_li
         (None, None),
     ],
 )
-def test_is_positive_int_should_behave_correctly(input_value, expected_value):
+def test_is_positive_int_should_return_value_for_valid_input(input_value, expected_value):
     """Tests that is_positive_int returns correct value when the validation succeeds."""
     assert is_positive_int(input_value) == expected_value
 
@@ -296,7 +294,7 @@ def test_is_positive_int_should_behave_correctly(input_value, expected_value):
         0,
     ],
 )
-def test_is_positive_int_should_raise_argument_type_exception_when_input_value_is_wrong(input_value):
+def test_is_positive_int_should_raise_for_invalid_input(input_value):
     """Tests that is_positive_int returns correct value what the validation does not succeed."""
     with pytest.raises(ArgumentTypeError) as e:
         is_positive_int(input_value)

@@ -15,7 +15,7 @@ from test.servers.fixtures import (
 )
 
 
-def test_server_metadata_should_match_kramerius_5_configuration(kramerius_5_server):
+def test_init_should_match_kramerius_5_configuration(kramerius_5_server):
     """Test that Kramerius 5 server metadata matches expected configuration."""
     server = Kramerius5ServerType()
 
@@ -25,7 +25,7 @@ def test_server_metadata_should_match_kramerius_5_configuration(kramerius_5_serv
     assert server.document_info_methods["dom_selenium"]["page_search"]["id"].pattern == r"page-id-(uuid:[a-f0-9-]+)"
 
 
-def test_get_document_pages_should_use_helper_class_and_returned_values(
+def test_get_document_pages_should_use_helper_class_and_return_values(
     monkeypatch, document_url, fake_getter, kramerius_5_server
 ):
     """Test that get_document_pages uses the helper class and returns its values."""
@@ -44,7 +44,7 @@ def test_get_document_pages_should_use_helper_class_and_returned_values(
     assert captured["name"] == "DomSeleniumGetterMethod"
 
 
-def test_get_document_pages_should_retry_with_next_method_when_first_fails(
+def test_get_document_pages_should_retry_with_next_method_on_failure(
     monkeypatch, document_url, page_pattern, failing_getter, success_after_failing_getter, kramerius_5_server
 ):
     """Test that get_document_pages retries the next method when the first fails."""
@@ -76,7 +76,7 @@ def test_get_document_pages_should_retry_with_next_method_when_first_fails(
     assert result == ["uuid-3"]
 
 
-def test_get_document_pages_should_raise_value_error_when_every_strategy_fails(
+def test_get_document_pages_should_raise_value_error_when_all_strategies_fail(
     monkeypatch, document_url, page_pattern, failing_getter, kramerius_5_server
 ):
     """Test that get_document_pages raises ValueError when all strategies fail."""
@@ -89,7 +89,7 @@ def test_get_document_pages_should_raise_value_error_when_every_strategy_fails(
         kramerius_5_server.get_document_pages(document_url)
 
 
-def test_get_document_pages_should_reuses_active_getter(document_url, kramerius_5_server):
+def test_get_document_pages_should_reuse_active_getter(document_url, kramerius_5_server):
     """Test that get_document_pages reuses the active getter instance."""
     kramerius_5_server.document_info_methods = {"dom_selenium": {"title_search": None, "page_search": None}}
 
@@ -102,7 +102,7 @@ def test_get_document_pages_should_reuses_active_getter(document_url, kramerius_
     assert kramerius_5_server.get_document_pages(document_url) == ["active-page"]
 
 
-def test_get_document_pages_should_discard_active_getter_after_failure(
+def test_get_document_pages_should_discard_active_getter_on_failure(
     monkeypatch, document_url, fake_getter, getter_params, page_pattern, kramerius_5_server
 ):
     """Test that get_document_pages discards a failed active getter and tries the next method."""
@@ -137,7 +137,7 @@ def test_get_document_pages_should_discard_active_getter_after_failure(
     assert isinstance(kramerius_5_server.active_getter_instance, fake_getter)
 
 
-def test_get_document_pages_should_raise_value_error_when_getter_returns_no_pages(
+def test_get_document_pages_should_raise_value_error_when_no_pages_returned(
     monkeypatch, document_url, page_pattern, getter_params, kramerius_5_server
 ):
     """Test that get_document_pages raises ValueError when getter returns empty page list."""
@@ -157,7 +157,7 @@ def test_get_document_pages_should_raise_value_error_when_getter_returns_no_page
         kramerius_5_server.get_document_pages(document_url)
 
 
-def test_get_document_name_should_return_value_when_helper_finds_it(
+def test_get_document_title_should_return_value_when_helper_finds_it(
     monkeypatch, document_url, getter_params, kramerius_5_server
 ):
     """Test that get_document_title returns the value when the helper finds it."""
@@ -191,7 +191,7 @@ def test_get_document_subtitle_should_return_value_when_helper_finds_it(monkeypa
     assert kramerius_5_server.get_document_subtitle(document_url) == "Found Subtitle"
 
 
-def test_get_document_subtitle_should_return_empty_string_when_helpers_fails(
+def test_get_document_subtitle_should_return_empty_string_when_helper_fails(
     monkeypatch, document_url, getter_params, kramerius_5_server
 ):
     """Tests that get_document_subtitle returns empty string when helpers fails."""
@@ -222,7 +222,7 @@ def test_get_document_title_should_use_active_getter(document_url, kramerius_5_s
     assert kramerius_5_server.get_document_title(document_url) == "Active Title"
 
 
-def test_get_document_title_should_return_empty_titles_when_no_helper_returns_title(
+def test_get_document_title_should_return_empty_string_when_no_helper_returns_title(
     monkeypatch, document_url, getter_params, kramerius_5_server
 ):
     """Tests that get_document_title returns empty string when no helper returns a title."""
@@ -240,7 +240,7 @@ def test_get_document_title_should_return_empty_titles_when_no_helper_returns_ti
     assert kramerius_5_server.get_document_title(document_url) == ""
 
 
-def test_get_document_title_should_discard_failed_active_getter_and_uses_next_helper(
+def test_get_document_title_should_discard_failed_active_getter_and_use_next_helper(
     monkeypatch, document_url, getter_params, kramerius_5_server
 ):
     """Tests that get_document_title discards failed active getter and uses next helper."""

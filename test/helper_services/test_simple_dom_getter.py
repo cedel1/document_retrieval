@@ -14,7 +14,7 @@ def simple_dom_getter():
 
 
 @responses.activate
-def test_get_pages_calls_requests_with_expected_arguments_and_parses_response(
+def test_get_pages_should_call_requests_and_parse_response(
     monkeypatch, simple_dom_getter, page_html, page_search_pattern
 ):
     captured = {}
@@ -48,7 +48,7 @@ def test_get_pages_calls_requests_with_expected_arguments_and_parses_response(
 
 
 @responses.activate
-def test_get_pages_returns_empty_list_on_http_error(simple_dom_getter, page_search_pattern):
+def test_get_pages_should_return_empty_list_on_http_error(simple_dom_getter, page_search_pattern):
     responses.add(
         responses.GET,
         "https://example.com/document",
@@ -58,7 +58,9 @@ def test_get_pages_returns_empty_list_on_http_error(simple_dom_getter, page_sear
     assert simple_dom_getter.get_pages("https://example.com/document", page_search_pattern) == []
 
 
-def test_get_pages_handles_get_document_source_raising_http_error(monkeypatch, simple_dom_getter, page_search_pattern):
+def test_get_pages_should_handle_http_error_from_get_document_source(
+    monkeypatch, simple_dom_getter, page_search_pattern
+):
     def fake_get_document_source(self, document_url):
         raise HTTPError("failed")
 
@@ -67,7 +69,7 @@ def test_get_pages_handles_get_document_source_raising_http_error(monkeypatch, s
     assert simple_dom_getter.get_pages("https://example.com/document", page_search_pattern) == []
 
 
-def test_get_name_returns_empty_when_xpath_missing(monkeypatch, simple_dom_getter):
+def test_get_title_should_return_empty_when_xpath_missing(monkeypatch, simple_dom_getter):
     # return HTML without the requested xpath
     monkeypatch.setattr(
         SimpleDomGetterMethod, "get_document_source", lambda self, url: "<html><body><div>no h1</div></body></html>"
@@ -76,7 +78,7 @@ def test_get_name_returns_empty_when_xpath_missing(monkeypatch, simple_dom_gette
     assert simple_dom_getter.get_title("https://example.com/document", "//h1") == ""
 
 
-def test_extract_uuids_from_divs_with_id_pattern_collects_unique_values(
+def test_extract_uuids_from_divs_with_id_pattern_should_collect_unique_values(
     simple_dom_getter, page_html, page_search_pattern
 ):
     soup = __import__("bs4").BeautifulSoup(page_html, "html.parser")
@@ -89,7 +91,7 @@ def test_extract_uuids_from_divs_with_id_pattern_collects_unique_values(
     ]
 
 
-def test_get_uuid_from_match_ignores_duplicates_and_non_matches(simple_dom_getter):
+def test_get_uuid_from_match_should_ignore_duplicates_and_non_matches(simple_dom_getter):
     pattern = __import__("re").compile(r"page-id-(uuid:[a-f0-9-]+)")
 
     result = simple_dom_getter._get_uuid_from_match([], "page-id-uuid:33333333-3333-3333-3333-333333333333", pattern)
@@ -104,13 +106,17 @@ def test_get_uuid_from_match_ignores_duplicates_and_non_matches(simple_dom_gette
     assert no_match == ["uuid:33333333-3333-3333-3333-333333333333"]
 
 
-def test_extract_uuids_returns_empty_when_soup_none(simple_dom_getter, page_search_pattern):
+def test_extract_uuids_from_divs_with_id_pattern_should_return_empty_when_soup_none(
+    simple_dom_getter, page_search_pattern
+):
     result = simple_dom_getter._extract_uuids_from_divs_with_id_pattern(None, page_search_pattern)
 
     assert result == []
 
 
-def test_extract_uuids_with_no_matches(simple_dom_getter, page_search_pattern):
+def test_extract_uuids_from_divs_with_id_pattern_should_return_empty_on_no_matches(
+    simple_dom_getter, page_search_pattern
+):
     soup = __import__("bs4").BeautifulSoup('<html><body><div id="no-match"></div></body></html>', "html.parser")
 
     result = simple_dom_getter._extract_uuids_from_divs_with_id_pattern(soup, page_search_pattern)
@@ -118,7 +124,9 @@ def test_extract_uuids_with_no_matches(simple_dom_getter, page_search_pattern):
     assert result == []
 
 
-def test_extract_uuids_handles_duplicates_preserving_order(simple_dom_getter, page_search_pattern):
+def test_extract_uuids_from_divs_with_id_pattern_should_preserve_order_and_deduplicate(
+    simple_dom_getter, page_search_pattern
+):
     html = """
     <html>
       <body>
