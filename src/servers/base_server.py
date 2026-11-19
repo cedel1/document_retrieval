@@ -25,6 +25,7 @@ class BaseServerType(ABC):
     # implementations should override this with a regex pattern to extract the document identifier from a URL
     document_identifier_url_pattern: Pattern
     document_info_methods: dict[str, dict]
+
     # sample document_info_methods
     # document_info_methods: dict[str, dict|str] = {
     #     "dom_selenium": {

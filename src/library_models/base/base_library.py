@@ -34,7 +34,9 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
         Returns:
             None: The library instance is created in memory.
         """
-        self.library_url = [url for url in self.server_urls if document_url.startswith(url)][0] if document_url else ""
+        self.library_url = (
+            next((url for url in self.server_urls if document_url.startswith(url)), "") if document_url else ""
+        )
         self.documents = []  # List of BaseDocument instances associated with this library
 
     @classmethod

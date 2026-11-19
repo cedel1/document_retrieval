@@ -5,16 +5,17 @@ from __future__ import annotations
 import re
 import urllib.parse
 from pathlib import Path
-from socketserver import BaseServer
 from typing import Optional, Sequence
 
 from pathvalidate import sanitize_filepath, sanitize_filename
+
 from src.library_models.base.base_document import BaseDocument
 from src.library_models.base.base_document_factory import BaseDocumentFactory
 from src.library_models.base.base_library import BaseLibrary
 from src.library_models.dsmo.dsmo_document import DSMODocument
 from src.library_models.dsmo.dsmo_document_page import DSMODocumentPage
 from src.library_models.dsmo.dsmo_document_page_factory import DSMODocumentPageFactory
+from src.servers.base_server import BaseServerType
 
 
 class DSMODocumentFactory(BaseDocumentFactory):
@@ -127,7 +128,7 @@ class DSMODocumentFactory(BaseDocumentFactory):
     # pylint: disable-next=too-many-arguments, too-many-positional-arguments
     def from_url(
         library: BaseLibrary,
-        server_instance: BaseServer,
+        server_instance: BaseServerType,
         source_url: str,
         page_detail_url: str,
         output_dir: str = "output",

@@ -118,11 +118,12 @@ def preprocess_documents(
 
         for result in results:
             try:
-                result, library_name = result.get()
+                document, library_name = result.get()
                 print(
-                    f"Appending preprocessed document {result.title} ({result.identifier}) to library {library_name}."
+                    f"Appending preprocessed document {document.title} ({document.identifier}) to "
+                    f"library {library_name}."
                 )
-                libraries[library_name].append_preprocessed_document(result)
+                libraries[library_name].append_preprocessed_document(document)
             except (TimeoutError, ValueError) as e:
                 logger.exception("Failed to retrieve result: %s", e)
 
