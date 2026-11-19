@@ -3,7 +3,7 @@
 from src.helpers.singleton import Singleton, SingletonMeta
 
 
-def test_singleton_meta_returns_same_instance_and_preserves_first_arguments():
+def test_singleton_meta_should_return_same_instance_and_preserve_first_arguments():
     class SampleSingleton(metaclass=SingletonMeta):
         def __init__(self, value: int = 0, *, label: str = "") -> None:
             self.value = value
@@ -18,7 +18,7 @@ def test_singleton_meta_returns_same_instance_and_preserves_first_arguments():
     assert SingletonMeta._instances[SampleSingleton] is first
 
 
-def test_singleton_base_class_behaves_like_singleton_across_reinstantiation():
+def test_singleton_base_class_should_return_same_instance_across_reinstantiation():
     class Config(Singleton):
         def __init__(self, *, mode: str = "default") -> None:
             self.mode = mode

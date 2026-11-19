@@ -10,7 +10,7 @@ from src.servers.kramerius_5_server import Kramerius5ServerType
 from test.library_models.dsmo.fixtures import document_url, dsmo_library_with_kramerius_5_server
 
 
-def test_dsmo_document_factory_from_uuid_builds_document_with_page_objects(monkeypatch, document_url):
+def test_from_identifier_should_build_document_with_page_objects(monkeypatch, document_url):
     captured = {}
 
     def fake_from_uuid(page_uuid, page_url, page_detail_url, index, output_dir):
@@ -39,7 +39,7 @@ def test_dsmo_document_factory_from_uuid_builds_document_with_page_objects(monke
     assert captured["args"][2] == "https://example.com/detail"
 
 
-def test_dsmo_document_factory_extract_document_uuid_from_url_returns_uuid_for_library_url(document_url):
+def test_extract_document_uuid_from_url_should_return_uuid_for_library_url(document_url):
     library = SimpleNamespace(server_type=Kramerius5ServerType())
 
     document_uuid = DSMODocumentFactory._extract_document_uuid_from_url(document_url, library)
@@ -47,14 +47,14 @@ def test_dsmo_document_factory_extract_document_uuid_from_url_returns_uuid_for_l
     assert document_uuid == "uuid:11111111-1111-1111-1111-111111111111"
 
 
-def test_dsmo_document_factory_extract_document_uuid_from_url_raises_when_missing_uuid():
+def test_extract_document_uuid_from_url_should_raise_when_missing_uuid():
     library = SimpleNamespace(server_type=Kramerius5ServerType())
 
     with pytest.raises(ValueError, match="Could not extract document UUID"):
         DSMODocumentFactory._extract_document_uuid_from_url("https://example.com/no-uuid-here", library)
 
 
-def test_dsmo_document_factory_from_url_discovers_pages_when_not_provided(
+def test_from_url_should_discover_pages_when_not_provided(
     dsmo_library_with_kramerius_5_server, monkeypatch, document_url
 ):
 
@@ -69,9 +69,7 @@ def test_dsmo_document_factory_from_url_discovers_pages_when_not_provided(
     assert [page.identifier for page in document.pages] == ["page-1", "page-2"]
 
 
-def test_dsmo_document_factory_from_url_uses_explicit_page_detail_url(
-    dsmo_library_with_kramerius_5_server, monkeypatch, document_url
-):
+def test_from_url_should_use_explicit_page_detail_url(dsmo_library_with_kramerius_5_server, monkeypatch, document_url):
     captured = {}
 
     def fake_from_uuid(page_uuid, page_url, page_detail_url, index, output_dir):
@@ -93,7 +91,7 @@ def test_dsmo_document_factory_from_url_uses_explicit_page_detail_url(
     assert captured["page_detail_url"] == "https://explicit.example.com/detail"
 
 
-def test_dsmo_document_factory_from_url_should_return_empty_string_when_document_title_raises_value_error(
+def test_from_url_should_return_empty_title_when_get_document_title_raises_value_error(
     dsmo_library_with_kramerius_5_server, document_url
 ):
     """Tests that the document title is returned as an empty string when the underlying method raises a ValueError."""
@@ -111,7 +109,7 @@ def test_dsmo_document_factory_from_url_should_return_empty_string_when_document
         assert document.title == ""
 
 
-def test_dsmo_document_factory_from_url_should_return_empty_string_when_document_subtitle_raises_value_error(
+def test_from_url_should_return_empty_subtitle_when_get_document_subtitle_raises_value_error(
     dsmo_library_with_kramerius_5_server, document_url
 ):
     """Tests that the document subtitle is returned as an empty string when the underlying method raises a ValueError."""
@@ -166,7 +164,7 @@ def test_dsmo_document_factory_from_url_should_return_empty_string_when_document
     ],
 )
 # @pytest.mark.filterwarnings("ignore:invalid escape sequence:SyntaxWarning")
-def test__create_document_path_should_sanitize_future_directory_name_properly(
+def test_create_document_path_should_sanitize_directory_name_properly(
     base_output_dir, document_uuid, document_title, expected_result
 ):
     """Tests that the document path is sanitized and does not contain invalid characters"""

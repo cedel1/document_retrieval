@@ -10,19 +10,19 @@ from src.servers.base_server import BaseServerType
 from test.servers.fixtures import example_server_type, document_url
 
 
-def test_base_server_str_includes_server_type_and_version(example_server_type):
+def test_str_should_include_server_type_and_version(example_server_type):
     """Test that the server string representation includes both type and version."""
     assert str(example_server_type()) == "example_3"
 
 
-def test_get_class_name_formats_registry_names():
+def test_get_class_name_should_format_registry_names():
     """Test that getter method names are converted to the expected class names."""
     assert BaseServerType._get_class_name("dom_selenium") == "DomSeleniumGetterMethod"
     assert BaseServerType._get_class_name("simple_dom") == "SimpleDomGetterMethod"
     assert BaseServerType._get_class_name("rest_api") == "RestApiGetterMethod"
 
 
-def test_get_class_from_name_imports_helper_class(monkeypatch, example_server_type):
+def test_get_class_from_name_should_import_helper_class(monkeypatch, example_server_type):
     """Test that the helper class is imported from the helper services module."""
 
     class FakeGetter:
@@ -41,7 +41,7 @@ def test_get_class_from_name_imports_helper_class(monkeypatch, example_server_ty
     assert result is FakeGetter
 
 
-def test_get_class_from_name_returns_none_for_missing_helper(monkeypatch, example_server_type):
+def test_get_class_from_name_should_return_none_for_missing_helper(monkeypatch, example_server_type):
     """Test that unknown helper names resolve to None instead of raising."""
     fake_module = type("FakeModule", (), {})
 
@@ -50,7 +50,7 @@ def test_get_class_from_name_returns_none_for_missing_helper(monkeypatch, exampl
     assert example_server_type()._get_class_from_name("DoesNotExist") is None
 
 
-def test_get_class_from_name_returns_none_when_module_import_fails(monkeypatch, example_server_type):
+def test_get_class_from_name_should_return_none_when_module_import_fails(monkeypatch, example_server_type):
     """Test that missing import modules are handled gracefully."""
 
     def fake_import(name):
@@ -61,7 +61,7 @@ def test_get_class_from_name_returns_none_when_module_import_fails(monkeypatch, 
     assert example_server_type()._get_class_from_name("SimpleDomGetterMethod") is None
 
 
-def test_get_getter_name_should_return_active_getter_name(example_server_type):
+def test_get_getter_name_should_return_active_getter_identifier(example_server_type):
     """Test that get_getter_name returns the normalized active getter identifier."""
     server = example_server_type()
     server.active_getter_instance = SimpleDomGetterMethod({})
@@ -69,7 +69,7 @@ def test_get_getter_name_should_return_active_getter_name(example_server_type):
     assert server.get_getter_name() == "simple_dom"
 
 
-def test_set_next_getter_should_switch_to_next_method(example_server_type):
+def test_set_next_getter_should_switch_to_next_getter_method(example_server_type):
     """Test that set_next_getter advances to the next configured getter instance."""
     server = example_server_type()
     server.document_info_methods = {
@@ -90,7 +90,7 @@ def test_set_next_getter_should_switch_to_next_method(example_server_type):
     assert isinstance(server.active_getter_instance, RestApiGetterMethod)
 
 
-def test_set_next_getter_should_raise_value_error_when_no_more_getters_exist(example_server_type):
+def test_set_next_getter_should_raise_value_error_when_no_more_getters(example_server_type):
     """Test that set_next_getter raises when the current getter is the last configured option."""
     server = example_server_type()
     server.document_info_methods = {
@@ -116,7 +116,7 @@ def test_set_next_getter_should_raise_value_error_when_no_more_getters_exist(exa
         server.set_next_getter()
 
 
-def test___exit__should_clear_active_getter(example_server_type):
+def test_exit_should_clear_active_getter(example_server_type):
     """Test that leaving the server context clears any cached active getter instance."""
     server = example_server_type()
     server.active_getter_instance = SimpleDomGetterMethod({})

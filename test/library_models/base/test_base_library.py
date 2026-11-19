@@ -49,7 +49,7 @@ def dummy_document(dummy_page):
     return DummyDocument
 
 
-def test_base_library_resolves_library_url_and_document_membership(concrete_library):
+def test_library_url_should_resolve_and_check_document_membership(concrete_library):
     library = concrete_library("https://example.com/documents/123")
 
     assert library.library_url == "https://example.com/"
@@ -58,7 +58,7 @@ def test_base_library_resolves_library_url_and_document_membership(concrete_libr
     assert concrete_library.get_document_base_server_url("https://example.com/documents/123") == "https://example.com/"
 
 
-def test_base_library_append_and_stringify(concrete_library):
+def test_append_preprocessed_document_should_add_to_documents_list(concrete_library):
     library = concrete_library("https://example.com/")
     marker = object()
 
@@ -68,7 +68,7 @@ def test_base_library_append_and_stringify(concrete_library):
     assert str(library) == "ConcreteLibrary"
 
 
-def test_base_library_process_document_uses_document_create_properties_file_and_page_download(
+def test_process_document_should_call_create_properties_file_and_page_download(
     monkeypatch, concrete_library, dummy_document
 ):
     library = concrete_library("https://example.com/")
@@ -88,12 +88,12 @@ def test_base_library_process_document_uses_document_create_properties_file_and_
     assert any("Processing document" in str(part) for call in calls for part in call)
 
 
-def test_base_library_get_document_base_server_url_raises_for_non_matching_url(concrete_library):
+def test_get_document_base_server_url_should_raise_for_non_matching_url(concrete_library):
     with pytest.raises(ValueError, match="does not belong to library"):
         concrete_library.get_document_base_server_url("https://other.example/document")
 
 
-def test_base_library_constructor_should_set_empty_library_url_for_unmatched_url(concrete_library):
+def test_init_should_set_empty_library_url_for_unmatched_url(concrete_library):
     """Test that constructing with a non-matching URL sets library_url to an empty string."""
     library = concrete_library("https://other.example/document")
 

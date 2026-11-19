@@ -33,13 +33,13 @@ def dummy_getter():
     return DummyGetter("identifier_pattern")
 
 
-def test_base_getter_should_be_abstract():
+def test_init_should_raise_type_error_for_abstract_base_class():
     """Test that the base getter class remains abstract and cannot be instantiated."""
     with pytest.raises(TypeError):
         BaseGetterMethod("identifier_pattern")
 
 
-def test_concrete_subclass_should_implement_get_pages(dummy_getter):
+def test_get_pages_should_work_for_concrete_subclass(dummy_getter):
     """Test that a concrete subclass can implement get_pages without overriding the base contract."""
     assert dummy_getter.get_pages("https://example.com", "pages") == [
         "https://example.com",
@@ -47,19 +47,19 @@ def test_concrete_subclass_should_implement_get_pages(dummy_getter):
     ]
 
 
-def test_base_getter_get_pages_should_raise_not_implemented_when_called_directly():
+def test_get_pages_should_raise_not_implemented_on_base_class():
     """Test that the abstract get_pages method raises NotImplementedError when invoked directly."""
     with pytest.raises(NotImplementedError, match="This method should be implemented in subclasses"):
         BaseGetterMethod.get_pages(None, "https://example.com", "pages")
 
 
-def test_base_getter_get_title_should_raise_not_implemented():
+def test_get_title_should_raise_not_implemented_on_base_class():
     """Test that the abstract get_title method raises NotImplementedError when invoked directly."""
     with pytest.raises(NotImplementedError, match="This method should be implemented in subclasses"):
         BaseGetterMethod.get_title(None, "https://example.com", "//h1")
 
 
-def test_base_getter_get_subtitle_should_raise_not_implemented_when_called_directly():
+def test_get_subtitle_should_raise_not_implemented_on_base_class():
     """Test that the abstract get_subtitle method raises NotImplementedError when invoked directly."""
     with pytest.raises(NotImplementedError, match="This method should be implemented in subclasses"):
         BaseGetterMethod.get_subtitle(None, "https://example.com", "//h2")

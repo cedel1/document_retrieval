@@ -4,7 +4,7 @@ from src.library_models.dsmo.dsmo_document_page import DSMODocumentPage
 from src.library_models.dsmo.dsmo_document_page_factory import DSMODocumentPageFactory
 
 
-def test_dsmo_document_page_factory_returns_correct_page_instance():
+def test_from_uuid_should_return_correct_page_instance():
     page = DSMODocumentPageFactory.from_uuid(
         "page-uuid",
         "https://example.com/page",

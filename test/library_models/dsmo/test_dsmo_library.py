@@ -3,7 +3,7 @@
 from src.library_models.dsmo.dsmo_library import DSMOLibrary
 
 
-def test_dsmo_library_uses_expected_server_metadata():
+def test_init_should_use_expected_server_metadata():
     library = DSMOLibrary("https://www.digitalniknihovna.cz/dsmo/view/uuid:11111111-1111-1111-1111-111111111111")
 
     assert library.library_name == "Library_DSMO"
@@ -11,14 +11,14 @@ def test_dsmo_library_uses_expected_server_metadata():
     assert library.page_detail_url == "https://digitalnistudovna.army.cz/"
 
 
-def test_dsmo_library_default_constructor_handles_missing_document_url():
+def test_init_should_handle_missing_document_url():
     library = DSMOLibrary()
 
     assert library.library_url == ""
     assert library.documents == []
 
 
-def test_dsmo_library_preprocess_document_from_url_passes_through_arguments(monkeypatch):
+def test_preprocess_document_from_url_should_pass_through_arguments(monkeypatch):
     captured = {}
 
     def fake_from_url(library, server_instance, source_url, page_detail_url, output_dir, page_uuids=None):
