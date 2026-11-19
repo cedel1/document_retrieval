@@ -43,7 +43,8 @@ class BaseDocumentPage(ABC):
         Returns:
             Path: The page-specific base output path.
         """
-        return self.output_dir / f"page_{self.index:03d}_{self.identifier[:8]}"
+        filename = f"page_{self.index:03d}_{self.identifier}"
+        return self.output_dir / filename[:64]
 
     def get_page_download_url(self, page_id: str) -> str:
         """Return the download URL for a given page UUID.
