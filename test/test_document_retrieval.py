@@ -1,5 +1,6 @@
 """Tests for document_retrieval.py methods."""
 
+import logging
 import os
 import sys
 from multiprocessing.pool import AsyncResult
@@ -385,3 +386,20 @@ def test_main_should_pass_library_specific_dezoomify_args_to_processing(main_env
 
     additional_args = main_env.process.call_args.args[1]
     assert additional_args == {"dezoomify-path": "dezoomify-rs", "dezoomify-args": ["--l"]}
+
+
+@pytest.mark.parametrize("argv, expected", [(["--verbose"], True), (["--no-verbose"], False)])
+def test_build_parser_should_parse_verbose_flags(argv, expected):
+    """Test that --verbose and --no-verbose set an explicit boolean value."""
+    assert build_parser().parse_args(argv).verbose is expected
+
+
+def test_main_should_let_no_verbose_override_verbose_config(main_env):
+    """Test that --no-verbose on the command line wins over verbose = true in the config file."""
+    config = main_env.write_config('documents_file = "docs.txt"\noutput = "out"\nverbose = true\n')
+    config_arg = str(config)
+
+    with patch("document_retrieval.logging.basicConfig") as basic_config:
+        main(["--config", config_arg, "--no-verbose"])
+
+    assert basic_config.call_args.kwargs["level"] == logging.INFO

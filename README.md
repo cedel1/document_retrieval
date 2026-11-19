@@ -49,7 +49,7 @@ python document_retrieval.py --documents_file documents.txt
 
 - `--config`: Path to a TOML config file (see [Configuration file](#configuration-file)); a missing file is an error
 - `--documents_file` (required on the command line or in the config file): Path to a file containing document URLs, one per line
-- `--verbose`: Enable debug logging
+- `--verbose` / `--no-verbose`: Enable or disable debug logging; `--no-verbose` overrides `verbose = true` from the config file
 - `--processes`: Number of processes for parallel processing (default: number of processor cores)
 - `--output`: Base output directory for downloaded files (default: `output`)
 - `--dezoomify-path`: Path to the `dezoomify-rs` executable (default: `dezoomify-rs`)
@@ -80,7 +80,8 @@ dezoomify_args = ["--max-width", "4000"]
 **Precedence** (highest first): command line > `[library.<library_name>]` table > top-level config keys > built-in
 defaults. A list given on the command line (`--pages`, `--dezoomify-args`) *replaces* the config list; a
 `--dezoomify-args` value also overrides library tables. To change a value for one run, give it on the command line;
-there are no per-library command-line options.
+there are no per-library command-line options. Boolean options come in pairs (`--verbose` / `--no-verbose`), so the
+command line can switch a setting both on and off; when neither is given, the config value (or the default) applies.
 
 **Keys**: top-level `documents_file`, `output`, `processes`, `verbose`, `pages`, `dezoomify_path`,
 `dezoomify_args`; per-library tables currently accept only `dezoomify_args`.
