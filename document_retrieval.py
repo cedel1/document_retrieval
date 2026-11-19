@@ -187,7 +187,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--documents_file",
         help="Path to text file containing document URLs (one per line); required here or in the config file",
     )
-    parser.add_argument("--verbose", action="store_true", default=None, help="Enable verbose (debug) logging")
+    parser.add_argument(
+        "--verbose",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable verbose (debug) logging; --no-verbose overrides verbose = true from the config file",
+    )
     parser.add_argument(
         "--processes",
         default=None,
