@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
-from typing import Sequence
+from typing import Optional, Sequence
 
 from src.library_models.base.base_library import BaseLibrary
 from src.library_models.dsmo.dsmo_document import DSMODocument
@@ -16,12 +15,14 @@ from src.servers.kramerius_5_server import Kramerius5ServerType
 class DSMOLibrary(BaseLibrary):
     """Concrete DSMO library/server that a specific document is hosted on."""
 
+    BASE_URL = "https://digitalnistudovna.army.cz/"
+
     library_name = "Library_DSMO"
 
-    server_urls: list[str] = ["https://www.digitalniknihovna.cz/dsmo/", "https://digitalnistudovna.army.cz/"]
+    server_urls: list[str] = ["https://www.digitalniknihovna.cz/dsmo/", BASE_URL]
     server_type: BaseServerType = Kramerius5ServerType  # NOSONAR  # subclass of BaseServerType
-    page_detail_url: str = "https://digitalnistudovna.army.cz/"
-    base_api_url: str = "https://digitalnistudovna.army.cz/"
+    page_detail_url: str = BASE_URL
+    base_api_url: str = BASE_URL
 
     def __init__(self, document_url: Optional[str] = None) -> None:
         """Initialize the DSMO library definition.
@@ -60,7 +61,7 @@ class DSMOLibrary(BaseLibrary):
             ValueError: If the document URL does not belong to this library.
         """
         output_path = str(Path(output_dir + "/" + self.library_name))
-        with DSMOLibrary.server_type() as server_instance:
+        with DSMOLibrary.server_type() as server_instance:  # NOSONAR  # creates instance of BaseServerType subclass
             document = DSMODocumentFactory.from_url(
                 library=self,
                 server_instance=server_instance,

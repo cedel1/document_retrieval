@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from socketserver import BaseServer
 from typing import Optional, Sequence
 
 from src.library_models.base.base_document import BaseDocument
 from src.library_models.base.base_library import BaseLibrary
+from src.servers.base_server import BaseServerType
 
 
 class BaseDocumentFactory(ABC):
@@ -49,7 +49,7 @@ class BaseDocumentFactory(ABC):
     # pylint: disable-next=too-many-arguments, too-many-positional-arguments
     def from_url(
         library: BaseLibrary,
-        server_instance: BaseServer,
+        server_instance: BaseServerType,
         source_url: str,
         page_detail_url: str,
         output_dir: str = "output",
