@@ -3,20 +3,25 @@
 Document Retrieval Script
 
 This script processes a file containing document URLs and retrieves
-all pages for each document.
+all pages for each document. Options can be given on the command line and/or in an optional TOML
+config file (see src/settings/settings.py); command-line options always take precedence.
 """
 
 import argparse
 import logging
+import sys
 from multiprocessing.pool import Pool, AsyncResult
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Optional, Sequence
 
 from pathvalidate.argparse import validate_filepath_arg
 from src.library_models.base.base_library import BaseLibrary
 from src.library_models.factories.library_factory import LibraryFactory
+from src.settings.settings import ConfigError, Settings, find_config, is_positive_int, load_config, resolve_settings
 
 logger = logging.getLogger(__name__)
+
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 
 def get_document_urls(documents_file_path: Path):
@@ -161,39 +166,28 @@ def process_library_documents(library: BaseLibrary, additional_args: dict[str, l
     return len(failed_documents) == 0
 
 
-def is_positive_int(value: Any):
-    """Simple validator for the argparse"""
-    if value is None:
-        return None
-    try:
-        int_value = int(value)
-        if 0 < int_value == float(value):
-            return int_value
-    except (ValueError, TypeError):
-        pass
+def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line parser.
 
-    raise argparse.ArgumentTypeError("Value must be a positive integer")
-
-
-def main():
-    """Main entry point: parse CLI args and process multiple documents.
-
-    This script expects a path to a text file containing document URLs (one per
-    line). It constructs library objects for each URL, optionally filters pages
-    and dezoomify settings through command-line options, and processes each
-    library's documents.
-
-    Args:
-        None (reads arguments from sys.argv via argparse).
+    Options that can also be set in the config file default to ``None`` so that "not given on the command line"
+    can be told apart from an explicit value. The real defaults live in ``src/settings/settings.py``.
 
     Returns:
-        None. The function configures logging and exits with side-effects (files, logs).
+        The configured argument parser.
     """
     parser = argparse.ArgumentParser(description="Retrieve multiple documents from a file")
+    parser.add_argument(
+        "--config",
+        help="Path to a TOML config file. If omitted, document_retrieval.toml next to this script is used when "
+        "it exists. Command-line options override values from the config file.",
+    )
     # This file should already exist on the filesystem, created by user:
     # so no need to validate - it either is or is not found
-    parser.add_argument("--documents_file", help="Path to text file containing document URLs (one per line)")
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose (debug) logging")
+    parser.add_argument(
+        "--documents_file",
+        help="Path to text file containing document URLs (one per line); required here or in the config file",
+    )
+    parser.add_argument("--verbose", action="store_true", default=None, help="Enable verbose (debug) logging")
     parser.add_argument(
         "--processes",
         default=None,
@@ -202,52 +196,102 @@ def main():
         "processor cores.",
     )
 
-    # Parse known arguments to pass through to document_retrieval.py
     parser.add_argument("--pages", nargs="+", help="List of page UUIDs to download (overrides automatic discovery)")
     # this will be most likely created by this script, so validate it
     parser.add_argument(
-        "--output", default="output", help="Base output directory for downloaded images", type=validate_filepath_arg
+        "--output", type=validate_filepath_arg, help="Base output directory for downloaded images (default: output)"
     )
     parser.add_argument(
-        "--dezoomify-path", default="dezoomify-rs", help="Path to dezoomify-rs executable (default: dezoomify-rs)"
+        "--dezoomify-path",
+        dest="dezoomify_path",
+        help="Path to dezoomify-rs executable (default: dezoomify-rs)",
     )
     parser.add_argument(
-        "--dezoomify-args", nargs="+", action="extend", help="Additional arguments to pass to dezoomify-rs"
+        "--dezoomify-args",
+        dest="dezoomify_args",
+        nargs="+",
+        action="extend",
+        help="Additional arguments to pass to dezoomify-rs; overrides the config file, including library tables",
     )
+    return parser
 
-    args = parser.parse_args()
+
+def build_additional_args(settings: Settings, library_name: str) -> dict:
+    """Build the additional processing arguments passed to a library.
+
+    Args:
+        settings: The resolved settings.
+        library_name: ``library_name`` of the library being processed; selects library-specific dezoomify args.
+
+    Returns:
+        A dictionary with the ``dezoomify-path`` and ``dezoomify-args`` entries (always present) and, when
+        page UUIDs were set, a ``--pages`` entry.
+    """
+    additional_args: dict = {
+        "dezoomify-path": settings.dezoomify_path,
+        "dezoomify-args": settings.dezoomify_args_for(library_name),
+    }
+    if settings.pages:
+        additional_args["--pages"] = settings.pages
+    return additional_args
+
+
+def main(argv: Optional[Sequence[str]] = None):
+    """Main entry point: parse CLI args, merge the optional config file and process multiple documents.
+
+    This script expects a path to a text file containing document URLs (one per
+    line). It constructs library objects for each URL, optionally filters pages
+    and dezoomify settings through command-line options or the config file, and
+    processes each library's documents. Settings are resolved with the precedence
+    command line > ``[library.<library_name>]`` config table > top-level config > defaults.
+
+    Args:
+        argv: Command-line arguments (without the program name); ``None`` reads ``sys.argv``.
+
+    Returns:
+        None. The function configures logging and exits with side-effects (files, logs).
+
+    Raises:
+        ConfigError: If the config file is missing (when given explicitly) or invalid.
+        SystemExit: If no documents file is set on the command line or in the config file.
+    """
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    known_libraries = [library_class.library_name for library_class in LibraryFactory.library_classes]
+    config_path = find_config(args.config, SCRIPT_DIR)
+    config = load_config(config_path, known_libraries) if config_path else None
+    settings = resolve_settings(args, config)
 
     logging.basicConfig(
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.DEBUG if args.verbose else logging.INFO
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        level=logging.DEBUG if settings.verbose else logging.INFO,
     )
+    if config_path:
+        logger.debug("Using config file %s", config_path)
+    else:
+        logger.debug("No config file found; using command-line options only")
 
-    # Build additional arguments to pass through
-    additional_args = {}
-    if args.pages:
-        additional_args["--pages"] = args.pages
-    if args.dezoomify_path != "dezoomify-rs":
-        additional_args["dezoomify-path"] = args.dezoomify_path
-    if args.dezoomify_args:
-        additional_args["dezoomify-args"] = []
-        for arg in args.dezoomify_args:
-            additional_args["dezoomify-args"].append(arg)
-    logger.debug("Additional args to pass: %s", additional_args)
+    if not settings.documents_file:
+        parser.error("documents_file must be set with --documents_file or in the config file")
 
     # Create base output directory
-    Path(args.output).mkdir(parents=True, exist_ok=True)
+    Path(settings.output).mkdir(parents=True, exist_ok=True)
 
     library_results = []
     try:
         # Preprocess each document
         libraries: Dict[str, BaseLibrary] = preprocess_documents(
-            Path(args.documents_file),
-            output_dir=args.output,
-            page_uuids=args.pages,
-            processes=args.processes,
+            Path(settings.documents_file),
+            output_dir=settings.output,
+            page_uuids=settings.pages,
+            processes=settings.processes,
         )
         # Start processing per library
         for library in libraries.values():
-            library_results.append(process_library_documents(library, additional_args, args.output))
+            additional_args = build_additional_args(settings, library.library_name)
+            logger.debug("Additional args to pass to %s: %s", library.library_name, additional_args)
+            library_results.append(process_library_documents(library, additional_args, settings.output))
 
     except ValueError as e:
         logger.exception(e)
@@ -261,4 +305,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ConfigError as config_error:
+        sys.exit(f"Configuration error: {config_error}")
