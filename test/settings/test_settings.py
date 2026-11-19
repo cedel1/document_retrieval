@@ -1,6 +1,7 @@
 """Tests for the settings module (config file loading and settings resolution)."""
 
 from argparse import ArgumentTypeError
+from pathlib import Path
 
 import pytest
 
@@ -110,6 +111,31 @@ def test_load_config_should_keep_absolute_path_unchanged(write_config, known_lib
     config = load_config(write_config(f'{key} = "/abs/value"'), known_libraries)
 
     assert config[key] == "/abs/value"
+
+
+@pytest.mark.parametrize("value", ["./bin/dezoomify-rs", "bin/dezoomify-rs", "../dezoomify-rs"])
+def test_load_config_should_resolve_relative_dezoomify_path_against_config_directory(
+    write_config, known_libraries, tmp_path, value
+):
+    """Tests that a dezoomify_path with a directory part is resolved against the config file's directory."""
+    config = load_config(write_config(f'dezoomify_path = "{value}"'), known_libraries)
+
+    assert config["dezoomify_path"] == str(tmp_path / value)
+
+
+@pytest.mark.parametrize("value", ["dezoomify-rs", "/usr/bin/dezoomify-rs"])
+def test_load_config_should_keep_bare_or_absolute_dezoomify_path_unchanged(write_config, known_libraries, value):
+    """Tests that a bare command name (PATH lookup) and an absolute path are not changed."""
+    config = load_config(write_config(f'dezoomify_path = "{value}"'), known_libraries)
+
+    assert config["dezoomify_path"] == value
+
+
+def test_load_config_should_expand_home_in_dezoomify_path(write_config, known_libraries):
+    """Tests that ~ in dezoomify_path is expanded to an absolute path."""
+    config = load_config(write_config('dezoomify_path = "~/bin/dezoomify-rs"'), known_libraries)
+
+    assert config["dezoomify_path"] == str(Path("~/bin/dezoomify-rs").expanduser())
 
 
 def test_load_config_should_load_library_table_values(write_config, known_libraries):

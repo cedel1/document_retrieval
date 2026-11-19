@@ -1,6 +1,8 @@
 # document_retrieval
 
-Python tooling for retrieving high-resolution scans from Kramerius-based digital libraries, with the current implementation focused on the DSMO / Digitalni studovna archive. The project reads document URLs from a text file, resolves the right library backend, discovers page UUIDs, and downloads each page through `dezoomify-rs`.
+Python tooling for retrieving high-resolution scans from Kramerius-based digital libraries, with the current
+implementation focused on the DSMO / Digitalni studovna archive. The project reads document URLs from a text file,
+resolves the right library backend, discovers page UUIDs, and downloads each page through `dezoomify-rs`.
 
 ## Features
 
@@ -48,8 +50,10 @@ python document_retrieval.py --documents_file documents.txt
 ### Arguments
 
 - `--config`: Path to a TOML config file (see [Configuration file](#configuration-file)); a missing file is an error
-- `--documents_file` (required on the command line or in the config file): Path to a file containing document URLs, one per line
-- `--verbose` / `--no-verbose`: Enable or disable debug logging; `--no-verbose` overrides `verbose = true` from the config file
+- `--documents_file` (required on the command line or in the config file): Path to a file containing document URLs, one
+  per line
+- `--verbose` / `--no-verbose`: Enable or disable debug logging; `--no-verbose` overrides `verbose = true` from the
+  config file
 - `--processes`: Number of processes for parallel processing (default: number of processor cores)
 - `--output`: Base output directory for downloaded files (default: `output`)
 - `--dezoomify-path`: Path to the `dezoomify-rs` executable (default: `dezoomify-rs`)
@@ -89,9 +93,10 @@ command line can switch a setting both on and off; when neither is given, the co
 **Validation** is strict: unknown keys, unknown library tables, unknown keys inside a library table and invalid
 values or types (checked with the same rules as the command-line options) stop the program with an error.
 
-**Paths** inside the config file (`documents_file`, `output`) are relative to the config file's directory, while
-paths given on the command line are relative to the current directory. Document URLs always stay in the
-`documents_file`, never in the config.
+**Paths** inside the config file (`documents_file`, `output`, and `dezoomify_path` when it contains a directory,
+e.g. `./bin/dezoomify-rs`; a bare name such as `dezoomify-rs` is still looked up on `PATH`) are relative to the config
+file's directory, while paths given on the command line are relative to the current directory. Document URLs always stay
+in the `documents_file`, never in the config.
 
 ## Example input file
 
@@ -175,7 +180,9 @@ python document_retrieval.py \
 
 ## Supported sources
 
-The current implementation includes a library model for the DSMO archive and Kramerius 5 server discovery metadata. The architecture is designed so additional repositories can be added by registering another library model in `src/library_models/factories/library_factory.py`.
+The current implementation includes a library model for the DSMO archive and Kramerius 5 server discovery metadata. The
+architecture is designed so additional repositories can be added by registering another library model in
+`src/library_models/factories/library_factory.py`.
 
 ## Testing
 
@@ -217,6 +224,7 @@ test_{method_name}_{should|should_not}_{what_is_being_checked}
 ```
 
 **Examples:**
+
 - `test_output_base_should_truncate_filename_to_64_chars`
 - `test_get_document_pages_should_retry_with_next_method_on_failure`
 - `test_init_should_raise_type_error_when_instantiated_directly`
@@ -225,5 +233,6 @@ This convention applies to all new tests and ensures consistency across the test
 
 ## Performance considerations
 
-- **Multiprocessing**: Currently, document preprocessing uses multiprocessing with fixed a pool size of 2 processes for parallel processing
+- **Multiprocessing**: Currently, document preprocessing uses multiprocessing with fixed a pool size of 2 processes for
+  parallel processing
 - **Memory usage**: Each document is pre-processed independently to minimize wait time for Selenium and page download
