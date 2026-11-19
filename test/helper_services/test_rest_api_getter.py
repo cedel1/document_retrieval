@@ -103,6 +103,18 @@ def test__recursive_get_should_return_nested_values_from_list_paths(rest_api_get
     assert rest_api_getter._recursive_get(payload, "response", "missing") is None
 
 
+def test__recursive_get_should_return_none_for_empty_list_index(rest_api_getter):
+    """Test that indexing an empty list returns None."""
+    empty_list_payload = {"data": []}
+    assert rest_api_getter._recursive_get(empty_list_payload, "data", [0]) is None
+
+
+def test__recursive_get_should_return_none_for_null_intermediate_value(rest_api_getter):
+    """Test that subscripting a None intermediate value returns None."""
+    null_intermediate_payload = {"outer": None}
+    assert rest_api_getter._recursive_get(null_intermediate_payload, "outer", "inner") is None
+
+
 def test__get_full_api_url_should_build_complete_url_from_template(rest_api_getter):
     """Test that a URL template is combined with the configured base API URL."""
     url = rest_api_getter._get_full_api_url("search?q={}&rows=10", ["uuid:abc"])

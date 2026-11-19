@@ -91,3 +91,10 @@ def test_base_library_process_document_uses_document_create_properties_file_and_
 def test_base_library_get_document_base_server_url_raises_for_non_matching_url(concrete_library):
     with pytest.raises(ValueError, match="does not belong to library"):
         concrete_library.get_document_base_server_url("https://other.example/document")
+
+
+def test_base_library_constructor_should_set_empty_library_url_for_unmatched_url(concrete_library):
+    """Test that constructing with a non-matching URL sets library_url to an empty string."""
+    library = concrete_library("https://other.example/document")
+
+    assert library.library_url == ""
