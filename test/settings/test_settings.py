@@ -232,6 +232,15 @@ def test_load_config_should_raise_for_malformed_toml(write_config, known_librari
         load_config(config_path, known_libraries)
 
 
+def test_load_config_should_raise_for_non_utf8_file(tmp_path, known_libraries):
+    """Tests that a file in a non-UTF-8 encoding is reported as a ConfigError."""
+    config_path = tmp_path / "windows.toml"
+    config_path.write_bytes('output = "příliš"\n'.encode("cp1250"))
+
+    with pytest.raises(ConfigError, match="Cannot read config file"):
+        load_config(config_path, known_libraries)
+
+
 def test_load_config_should_raise_when_file_is_unreadable(tmp_path, known_libraries):
     """Tests that an unreadable file is reported as a ConfigError."""
     missing_path = tmp_path / "missing.toml"
