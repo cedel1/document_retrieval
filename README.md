@@ -164,7 +164,20 @@ pytest --cov=src --cov=test
 - `test/services/` - Tests for shared services
 - `test/test_document_retrieval.py` - Tests for the main CLI entry point
 
-Tests should follow the naming convention `test_{method_under_test}should|should_not{what is the test testing}` for clarity and maintainability.
+### Test naming convention
+
+All test functions must follow this format:
+
+```
+test_{method_name}_{should|should_not}_{what_is_being_checked}
+```
+
+**Examples:**
+- `test_output_base_should_truncate_filename_to_64_chars`
+- `test_get_document_pages_should_retry_with_next_method_on_failure`
+- `test_init_should_raise_type_error_when_instantiated_directly`
+
+This convention applies to all new tests and ensures consistency across the test suite.
 
 ## Performance considerations
 
