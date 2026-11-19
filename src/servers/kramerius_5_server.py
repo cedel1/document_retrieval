@@ -227,7 +227,7 @@ class Kramerius5ServerType(BaseServerType):
         try:
             return getattr(self.active_getter_instance, getter_method_name)(document_url, getter_method_parameters)
         except ValueError as e:
-            logger.exception("Saved active logger did not information for %s: %s", document_url, e)
+            logger.exception("Saved active getter did not return information for %s: %s", document_url, e)
             logger.debug(MSG_SWITCHING_TO_NEXT_METHOD)
             self.active_getter_instance = None
             raise e

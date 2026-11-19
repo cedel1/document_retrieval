@@ -3,9 +3,10 @@
 import re
 import urllib
 from typing import Any
-from typing_extensions import override
 
 import requests
+from typing_extensions import override
+
 from document_retrieval import logger
 from src.helper_services.base_getter import BaseGetterMethod
 
@@ -84,7 +85,7 @@ class RestApiGetterMethod(BaseGetterMethod):
                     source_dictionary = source_dictionary[key[0]]
                 else:
                     source_dictionary = source_dictionary[key]
-            except KeyError:
+            except (KeyError, IndexError, TypeError):
                 return None
         return source_dictionary
 

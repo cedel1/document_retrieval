@@ -5,6 +5,7 @@ import logging
 from bs4 import BeautifulSoup
 from requests import HTTPError
 from typing_extensions import override
+
 from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 
 MSG_SELENIUM_REQUEST_FAILED = "Selenium request failed: %s"
@@ -50,7 +51,7 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
             )
 
             if page_uuids:
-                logger.info("Found %d pages via basic request (static content)", len(page_uuids))
+                logger.info("Found %d pages via basic request", len(page_uuids))
                 return page_uuids
         except HTTPError as e:
             logger.exception(MSG_SELENIUM_REQUEST_FAILED, e)
