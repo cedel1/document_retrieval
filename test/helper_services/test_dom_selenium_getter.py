@@ -374,3 +374,31 @@ def test_setup_selenium_options_should_return_options_or_raise_runtime_error():
         assert hasattr(opts, "add_argument")
     except RuntimeError:
         pytest.skip("Selenium not available in this environment")
+
+
+@pytest.mark.parametrize("allow_insecure", [True, False])
+def test_setup_selenium_options_should_ignore_certificate_errors_only_when_insecure(monkeypatch, allow_insecure):
+    class FakeOptions:
+        def __init__(self):
+            self.args = []
+
+        def add_argument(self, argument):
+            self.args.append(argument)
+
+    selenium_module = types.ModuleType("selenium")
+    webdriver_module = types.ModuleType("selenium.webdriver")
+    chrome_module = types.ModuleType("selenium.webdriver.chrome")
+    chrome_options_module = types.ModuleType("selenium.webdriver.chrome.options")
+    chrome_options_module.Options = FakeOptions
+    chrome_module.options = chrome_options_module
+    webdriver_module.chrome = chrome_module
+    selenium_module.webdriver = webdriver_module
+    monkeypatch.setitem(sys.modules, "selenium", selenium_module)
+    monkeypatch.setitem(sys.modules, "selenium.webdriver", webdriver_module)
+    monkeypatch.setitem(sys.modules, "selenium.webdriver.chrome", chrome_module)
+    monkeypatch.setitem(sys.modules, "selenium.webdriver.chrome.options", chrome_options_module)
+
+    options = DomSeleniumGetterMethod._setup_selenium_options(allow_insecure)
+
+    assert ("--ignore-certificate-errors" in options.args) is allow_insecure
+    assert ("--allow-running-insecure-content" in options.args) is allow_insecure

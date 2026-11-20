@@ -44,15 +44,23 @@ class BaseServerType(ABC):
     #     },
     # }
 
-    def __init__(self):
+    def __init__(self, allow_insecure: bool = False):
         """Initialize the server with no cached getter.
+
+        Args:
+            allow_insecure: Whether certificate validation is disabled; handed to every getter created.
 
         ``active_getter_instance`` caches the getter selected during the
         current context-manager lifetime. It starts as ``None`` and is
         cleared by ``__exit__``; callers must not rely on it after leaving a
         ``with`` block.
         """
+        self.allow_insecure = allow_insecure
         self.active_getter_instance = None  # we always start with empty getter
+
+    def _getter_params(self, method_name: str) -> dict:
+        """Return the instance parameters of a getter method including the certificate setting."""
+        return {**self.document_info_methods[method_name]["instance_params"], "allow_insecure": self.allow_insecure}
 
     def __enter__(self):
         """Enter the context manager for the server.
@@ -141,9 +149,7 @@ class BaseServerType(ABC):
             method_name = methods_list[0]
 
         getter_class_name = self._get_class_name(method_name)
-        self.active_getter_instance = self._get_class_from_name(getter_class_name)(
-            self.document_info_methods[method_name]["instance_params"]
-        )
+        self.active_getter_instance = self._get_class_from_name(getter_class_name)(self._getter_params(method_name))
 
     def _get_class_from_name(self, class_name: str):
         """Dynamically import and return a class from the helper_services module.

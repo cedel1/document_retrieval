@@ -125,3 +125,17 @@ def test_exit_should_clear_active_getter(example_server_type):
         assert server.active_getter_instance is not None
 
     assert server.active_getter_instance is None
+
+
+def test_server_should_validate_certificates_by_default(example_server_type):
+    assert example_server_type().allow_insecure is False
+
+
+@pytest.mark.parametrize("allow_insecure", [True, False])
+def test_set_next_getter_should_pass_allow_insecure_to_getter(example_server_type, allow_insecure):
+    server = example_server_type(allow_insecure=allow_insecure)
+    server.document_info_methods = {"simple_dom": {"instance_params": {}}}
+
+    server.set_next_getter()
+
+    assert server.active_getter_instance.allow_insecure is allow_insecure

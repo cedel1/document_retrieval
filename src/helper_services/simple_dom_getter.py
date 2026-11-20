@@ -8,9 +8,10 @@ import requests
 from bs4 import BeautifulSoup
 from lxml import etree
 from requests import HTTPError
+from requests.exceptions import SSLError
 from typing_extensions import override
 
-from src.helper_services.base_getter import BaseGetterMethod
+from src.helper_services.base_getter import BaseGetterMethod, SSL_ERROR_HINT
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +44,13 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             BeautifulSoup | None: The parsed HTML source of the document page, or None if not available.
         """
         try:
-            response = requests.get(document_url, timeout=30, verify=False)
+            response = requests.get(document_url, timeout=30, verify=not self.allow_insecure)
             response.raise_for_status()
             self.document_page_source = BeautifulSoup(response.content, "html.parser")
             return self.document_page_source
+        except SSLError as e:
+            logger.exception(SSL_ERROR_HINT, document_url, e)
+            return None
         except HTTPError as e:
             logger.debug("Basic request failed: %s", e)
             return None

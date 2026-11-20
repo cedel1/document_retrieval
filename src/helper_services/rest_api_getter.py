@@ -8,7 +8,7 @@ import requests
 from typing_extensions import override
 
 from document_retrieval import logger
-from src.helper_services.base_getter import BaseGetterMethod
+from src.helper_services.base_getter import BaseGetterMethod, SSL_ERROR_HINT
 
 
 class RestApiGetterMethod(BaseGetterMethod):
@@ -111,7 +111,7 @@ class RestApiGetterMethod(BaseGetterMethod):
                     ),
                     headers={"Accept": "application/json"},
                     timeout=30,
-                    verify=False,
+                    verify=not self.allow_insecure,
                 )
                 logger.debug(document_info_response)
                 document_info_response.raise_for_status()
@@ -124,10 +124,13 @@ class RestApiGetterMethod(BaseGetterMethod):
                     ),
                     headers={"Accept": "application/json"},
                     timeout=30,
-                    verify=False,
+                    verify=not self.allow_insecure,
                 )
                 logger.debug(document_pages_response)
                 document_pages_response.raise_for_status()
+            except requests.exceptions.SSLError as e:
+                logger.exception(SSL_ERROR_HINT, document_url, e)
+                return None
             except requests.RequestException as e:
                 logger.exception("Error fetching document info from REST API: %s", e)
                 return None

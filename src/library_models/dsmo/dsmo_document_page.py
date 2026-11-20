@@ -44,18 +44,28 @@ class DSMODocumentPage(BaseDocumentPage):
         logger.debug("Download URL for page %s: %s", page_id, result)
         return result
 
-    def download(self, dezoomify_path: str = "dezoomify-rs", dezoomify_args: Optional[List[str]] = None) -> bool:
+    def download(
+        self,
+        dezoomify_path: str = "dezoomify-rs",
+        dezoomify_args: Optional[List[str]] = None,
+        allow_insecure: bool = False,
+    ) -> bool:
         """Download the current page using the dezoomify image pipeline.
 
         Args:
             dezoomify_path: Path or command name of the dezoomify executable.
             dezoomify_args: Optional additional command-line arguments.
+            allow_insecure: Whether certificate validation is disabled for the download.
 
         Returns:
             bool: True when the page download succeeds, otherwise False.
         """
         return bool(
             DownloadService.retrieve_dezoomified_image(
-                self.get_page_download_url(self.identifier), str(self.output_base), dezoomify_path, dezoomify_args or []
+                self.get_page_download_url(self.identifier),
+                str(self.output_base),
+                dezoomify_path,
+                dezoomify_args or [],
+                allow_insecure,
             )
         )

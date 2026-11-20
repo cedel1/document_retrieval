@@ -201,9 +201,7 @@ class Kramerius5ServerType(BaseServerType):
                     if getter_class is None:
                         continue
 
-                    self.active_getter_instance = getter_class(
-                        self.document_info_methods[method_name]["instance_params"]
-                    )
+                    self.active_getter_instance = getter_class(self._getter_params(method_name))
                     getter_method_parameters = self.document_info_methods[method_name][getter_method_parameters_key]
 
                     if method_to_use := self._get_document_partial_information(

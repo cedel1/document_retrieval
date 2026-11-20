@@ -13,6 +13,7 @@ resolves the right library backend, discovers page UUIDs, and downloads each pag
 - Per-library output layout under a shared base output directory
 - Custom dezoomify-rs binary path and extra dezoomify arguments
 - Optional TOML config file holding the command-line values, with library-dependent settings
+- Website certificate validation on by default; opt out with `--allow-insecure` (globally or per library)
 - Comprehensive logging support with `--verbose`
 - Selenium-based page discovery hooks for JavaScript-rendered content
 
@@ -56,6 +57,10 @@ python document_retrieval.py --documents_file documents.txt
   config file
 - `--processes`: Number of processes for parallel processing (default: number of processor cores)
 - `--output`: Base output directory for downloaded files (default: `output`)
+- `--allow-insecure` / `--no-allow-insecure`: Disable or (re-)enable website certificate validation (default:
+  certificates are validated). An explicit value overrides the config file, including library tables. When validation
+  is disabled, `--accept-invalid-certs` is also passed to `dezoomify-rs`. **Security note:** with validation disabled
+  the connection can be intercepted or spoofed; use it only for sites you trust.
 - `--dezoomify-path`: Path to the `dezoomify-rs` executable (default: `dezoomify-rs`)
 - `--dezoomify-args`: Additional arguments to pass through to `dezoomify-rs`; pass them as separate CLI values
 - `--pages`: Optional list of page UUIDs to download (overrides automatic page discovery)
@@ -88,7 +93,7 @@ there are no per-library command-line options. Boolean options come in pairs (`-
 command line can switch a setting both on and off; when neither is given, the config value (or the default) applies.
 
 **Keys**: top-level `documents_file`, `output`, `processes`, `verbose`, `pages`, `dezoomify_path`,
-`dezoomify_args`; per-library tables currently accept only `dezoomify_args`.
+`dezoomify_args`, `allow_insecure`; per-library tables accept `dezoomify_args` and `allow_insecure`.
 
 **Validation** is strict: unknown keys, unknown library tables, unknown keys inside a library table and invalid
 values or types (checked with the same rules as the command-line options) stop the program with an error.

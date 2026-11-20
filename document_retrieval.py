@@ -45,7 +45,7 @@ def get_document_urls(documents_file_path: Path):
                 yield line.strip()
 
 
-def get_library_document(document_url, output_dir, page_uuids, library_class):
+def get_library_document(document_url, output_dir, page_uuids, library_class, allow_insecure=False):
     """Preprocess a single document from a URL using the provided library.
 
     The worker creates its own library instance. Library instances are not
@@ -57,6 +57,7 @@ def get_library_document(document_url, output_dir, page_uuids, library_class):
         page_uuids: Optional list of page UUIDs to pass-through to preprocessing; if
             supplied, the preprocessing may attach only those pages.
         library_class: The class of the BaseLibrary instance to use for preprocessing the document.
+        allow_insecure: Whether certificate validation is disabled for this library.
 
     Returns:
         tuple: A tuple containing (document, str(library)) where document is the preprocessed
@@ -72,6 +73,7 @@ def get_library_document(document_url, output_dir, page_uuids, library_class):
             page_detail_url=library.page_detail_url,
             output_dir=output_dir,
             page_uuids=page_uuids,
+            allow_insecure=allow_insecure,
         )
         return document, str(library)
     except ValueError as e:
@@ -84,6 +86,7 @@ def preprocess_documents(
     output_dir: str = "output",
     page_uuids: list[str] = None,
     processes: int | None = None,
+    settings: Optional[Settings] = None,
 ) -> Dict[str, BaseLibrary]:
     """Read a file containing document URLs and build library objects.
 
@@ -99,6 +102,7 @@ def preprocess_documents(
         page_uuids: Optional list of page UUIDs to pass-through to preprocessing; if
             supplied, the preprocessing may attach only those pages.
         processes: Number of concurrent processes to use for preprocessing.
+        settings: Resolved settings; selects the per-library ``allow_insecure`` value (defaults apply when omitted).
 
     Returns:
         A dictionary mapping library string identifiers to BaseLibrary instances
@@ -113,9 +117,11 @@ def preprocess_documents(
                 print(f"Preprocessing {document_url}.")
                 library = LibraryFactory.from_url(document_url)
                 libraries[str(library)] = library
+                allow_insecure = settings.allow_insecure_for(library.library_name) if settings else False
                 results.append(
                     pool.apply_async(
-                        get_library_document, args=(document_url, output_dir, page_uuids, library.__class__)
+                        get_library_document,
+                        args=(document_url, output_dir, page_uuids, library.__class__, allow_insecure),
                     )
                 )
             except ValueError as e:
@@ -193,6 +199,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Enable verbose (debug) logging; --no-verbose overrides verbose = true from the config file",
     )
+    # The default must stay None ("not given on the command line"), not False. Only then can a value from
+    # [library.<name>] or the top level of the config file take effect, and an explicit --allow-insecure or
+    # --no-allow-insecure be told apart from the absence of the option. The real default (False, i.e. certificates
+    # are validated) lives in src/settings/settings.py.
+    parser.add_argument(
+        "--allow-insecure",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Disable website certificate validation (default: certificates are validated); overrides the config "
+        "file, including library tables. --no-allow-insecure re-enables validation over allow_insecure = true",
+    )
     parser.add_argument(
         "--processes",
         default=None,
@@ -229,12 +246,13 @@ def build_additional_args(settings: Settings, library_name: str) -> dict:
         library_name: ``library_name`` of the library being processed; selects library-specific dezoomify args.
 
     Returns:
-        A dictionary with the ``dezoomify-path`` and ``dezoomify-args`` entries (always present) and, when
-        page UUIDs were set, a ``--pages`` entry.
+        A dictionary with the ``dezoomify-path``, ``dezoomify-args`` and ``allow-insecure`` entries (always
+        present) and, when page UUIDs were set, a ``--pages`` entry.
     """
     additional_args: dict = {
         "dezoomify-path": settings.dezoomify_path,
         "dezoomify-args": settings.dezoomify_args_for(library_name),
+        "allow-insecure": settings.allow_insecure_for(library_name),
     }
     if settings.pages:
         additional_args["--pages"] = settings.pages
@@ -291,6 +309,7 @@ def main(argv: Optional[Sequence[str]] = None):
             output_dir=settings.output,
             page_uuids=settings.pages,
             processes=settings.processes,
+            settings=settings,
         )
         # Start processing per library
         for library in libraries.values():
