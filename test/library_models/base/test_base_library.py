@@ -1,8 +1,10 @@
 """Tests for the abstract base library implementation."""
 
+from unittest.mock import Mock
+
 import pytest
 
-from src.library_models.base.base_library import BaseLibrary
+from src.library_models.base.base_library import BaseLibrary, PageDownloadResult
 from test.library_models.base.fixtures import print_mock
 
 
@@ -31,6 +33,7 @@ def dummy_page():
 
         def download(self, dezoomify_path, dezoomify_args, allow_insecure=False):
             self.called.append((dezoomify_path, dezoomify_args, allow_insecure))
+            return True
 
     return DummyPage
 
@@ -106,3 +109,43 @@ def test_init_should_set_empty_library_url_for_unmatched_url(concrete_library):
     library = concrete_library("https://other.example/document")
 
     assert library.library_url == ""
+
+
+def test_process_document_should_continue_after_failed_page(concrete_library, dummy_document):
+    library = concrete_library("https://example.com/")
+    document = dummy_document()
+    document.pages = [Mock(identifier="p1"), Mock(identifier="p2"), Mock(identifier="p3")]
+    document.pages[0].download.return_value = True
+    document.pages[1].download.return_value = False
+    document.pages[2].download.return_value = True
+
+    result = library.process_document(document, {"dezoomify-path": "/tool", "dezoomify-args": []}, "out")
+
+    assert result == PageDownloadResult(2, 1, 0)
+    document.pages[2].download.assert_called_once()
+
+
+def test_process_document_should_stop_after_unexpected_page_exception(concrete_library, dummy_document, caplog):
+    library = concrete_library("https://example.com/")
+    document = dummy_document()
+    document.pages = [Mock(identifier="p1"), Mock(identifier="p2"), Mock(identifier="p3")]
+    document.pages[0].download.return_value = True
+    document.pages[1].download.side_effect = RuntimeError("unexpected")
+
+    result = library.process_document(document, {"dezoomify-path": "/tool", "dezoomify-args": []}, "out")
+
+    assert result == PageDownloadResult(1, 1, 1)
+    document.pages[2].download.assert_not_called()
+    assert "Traceback" in caplog.text
+
+
+def test_process_document_should_not_download_pages_when_properties_fail(concrete_library, dummy_document):
+    library = concrete_library("https://example.com/")
+    document = dummy_document()
+    document.create_properties_file = Mock(side_effect=OSError("cannot write"))
+    document.pages = [Mock(identifier="p1")]
+
+    with pytest.raises(OSError, match="cannot write"):
+        library.process_document(document, {"dezoomify-path": "/tool", "dezoomify-args": []}, "out")
+
+    document.pages[0].download.assert_not_called()

@@ -6,6 +6,9 @@ import re
 import string
 from abc import ABC, abstractmethod
 from re import Pattern
+from typing import Any
+
+from src.helper_services.base_getter import BaseGetterMethod
 
 IMPLEMENT_IN_SUBCLASSES = "This method must be implemented in a subclass."
 
@@ -24,7 +27,7 @@ class BaseServerType(ABC):
     base_getter_directory = "src.helper_services"
     # implementations should override this with a regex pattern to extract the document identifier from a URL
     document_identifier_url_pattern: Pattern
-    document_info_methods: dict[str, dict]
+    document_info_methods: dict[str, dict[str, Any]]
 
     # sample document_info_methods
     # document_info_methods: dict[str, dict|str] = {
@@ -56,7 +59,7 @@ class BaseServerType(ABC):
         ``with`` block.
         """
         self.allow_insecure = allow_insecure
-        self.active_getter_instance = None  # we always start with empty getter
+        self.active_getter_instance: BaseGetterMethod | None = None
 
     def _getter_params(self, method_name: str) -> dict:
         """Return the instance parameters of a getter method including the certificate setting."""
@@ -149,26 +152,33 @@ class BaseServerType(ABC):
             method_name = methods_list[0]
 
         getter_class_name = self._get_class_name(method_name)
-        self.active_getter_instance = self._get_class_from_name(getter_class_name)(self._getter_params(method_name))
+        getter_class = self._get_class_from_name(getter_class_name)
+        if getter_class is None:
+            raise ValueError(f"Getter class {getter_class_name} is unavailable")
+        self.active_getter_instance = getter_class(self._getter_params(method_name))
 
-    def _get_class_from_name(self, class_name: str):
+    def _get_class_from_name(self, class_name: str) -> type[BaseGetterMethod] | None:
         """Dynamically import and return a class from the helper_services module.
 
         Args:
             class_name: The name of the class to import.
 
         Returns:
-            type: The class object corresponding to the provided class name.
+            type[BaseGetterMethod] | None: The getter class, or None if it cannot be loaded.
         """
-        class_ = None
         try:
             module_ = importlib.import_module(self.base_getter_directory)
             try:
                 class_ = getattr(module_, class_name)
             except AttributeError:
                 logger.exception("Class %s does not exist", class_name)
+                return None
         except ImportError:
             logger.exception("Module %s does not exist", self.base_getter_directory)
+            return None
+        if not isinstance(class_, type) or not issubclass(class_, BaseGetterMethod):
+            logger.error("Class %s is not a document getter", class_name)
+            return None
         return class_
 
     @abstractmethod

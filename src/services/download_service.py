@@ -4,13 +4,44 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 import subprocess
 import time
 from typing import List, Optional
+from urllib.parse import urlparse
 
+from src.helper_services.base_getter import SSL_ERROR_HINT
 from src.settings.settings import ACCEPT_INVALID_CERTS_ARG
 
 logger = logging.getLogger(__name__)
+
+
+def _is_certificate_discovery_failure(stderr: str) -> bool:
+    """Recognize dezoomify discovery failures containing only certificate errors and format mismatches."""
+    if "Dezoomer error: discovery failed: no discovery candidate accepted the input" not in stderr:
+        return False
+    # Extract `- candidate: reason` lines to distinguish certificate-only failures from other errors.
+    # The lookahead leaves at least one character for the reason, even if it is whitespace.
+    reasons = []
+    for line in stderr.split("\n"):
+        match = re.match(r"[ \t]*-[ \t]+\w+:[ \t]+(?=.)", line, flags=re.ASCII)
+        if match:
+            reasons.append(line[match.end() :])
+    certificate_failures = [
+        reason
+        for reason in reasons
+        if reason.startswith(
+            ("error sending request for url (", "failed to download krpano metadata: error sending request for url (")
+        )
+        and "): error:" in reason
+        and ":SSL routines:" in reason.partition("): ")[2]
+        and ":certificate verify failed:" in reason.partition("): ")[2]
+    ]
+    return bool(certificate_failures) and all(
+        reason in certificate_failures
+        or (reason.startswith(("not a ", "not an ")) and reason.endswith((" URL", " file", " template")))
+        for reason in reasons
+    )
 
 
 class DownloadService:
@@ -56,12 +87,15 @@ class DownloadService:
         time.sleep(delay)
 
     @staticmethod
+    # pylint: disable-next=too-many-arguments
     def retrieve_dezoomified_image(
         properties_download_url: str,
         output_base: str = "output",
         dezoomify_path: str = "dezoomify-rs",
         dezoomify_args: Optional[List[str]] = None,
         allow_insecure: bool = False,
+        *,
+        document_url: Optional[str] = None,
     ) -> bool:
         """Download the dezoomified image for one page UUID.
 
@@ -72,6 +106,7 @@ class DownloadService:
             dezoomify_args: Optional additional command-line arguments.
             allow_insecure: When True, ``--accept-invalid-certs`` is passed to dezoomify-rs (unless already
                 present in ``dezoomify_args``); otherwise certificates are validated, which is its default.
+            document_url: Document or page URL used to identify certificate failures in warnings.
 
         Returns:
             bool: True when the image download succeeds, otherwise False.
@@ -102,7 +137,13 @@ class DownloadService:
             if result.returncode == 0:
                 logger.info("Image with output base %s downloaded successfully.", output_base)
                 return True
-            logger.exception(
+            if not result.stdout.strip() and _is_certificate_discovery_failure(result.stderr):
+                logger.warning(
+                    SSL_ERROR_HINT, urlparse(properties_download_url).hostname, document_url or properties_download_url
+                )
+                logger.debug("dezoomify-rs certificate failure: %s", result.stderr)
+                return False
+            logger.error(
                 "Error running dezoomify-rs (returncode=%s). stdout=%s stderr=%s",
                 result.returncode,
                 result.stdout,

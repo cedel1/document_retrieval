@@ -2,12 +2,25 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod, ABCMeta
-from typing import Optional, Sequence
+from dataclasses import dataclass
+from typing import Any, Optional, Sequence
 
 from src.helpers.singleton import Singleton, SingletonMeta
 from src.library_models.base.base_document import BaseDocument
 from src.servers.base_server import BaseServerType
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PageDownloadResult:
+    """Page outcomes for a document, including pages skipped after an unexpected error."""
+
+    succeeded: int
+    failed: int
+    unattempted: int = 0
 
 
 class BaseMetaClass(ABCMeta, SingletonMeta):
@@ -107,7 +120,9 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
         """
         return f"{self.__class__.__name__}"
 
-    def process_document(self, document: BaseDocument, additional_args: dict[str, list], output_dir: str) -> None:
+    def process_document(
+        self, document: BaseDocument, additional_args: dict[str, Any], output_dir: str
+    ) -> PageDownloadResult:
         """Process a document hosted on this library.
 
         Args:
@@ -116,7 +131,7 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
             output_dir: Directory to store processed outputs.
 
         Returns:
-            None: The document is processed and stored in the specified output directory.
+            PageDownloadResult: Counts of successful, failed, and unattempted page downloads.
         """
         # Placeholder for actual processing logic
         print(f"Processing document {document} from library {self} with args {additional_args} into {output_dir}")
@@ -127,10 +142,23 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
             dezoomify_args=additional_args["dezoomify-args"],
             allow_insecure=allow_insecure,
         )
-        for page in document.pages:
+        succeeded = 0
+        failed = 0
+        for index, page in enumerate(document.pages):
             print(f"Processing page {page} of document {document}")
-            page.download(
-                dezoomify_path=additional_args["dezoomify-path"],
-                dezoomify_args=additional_args["dezoomify-args"],
-                allow_insecure=allow_insecure,
-            )
+            try:
+                if page.download(
+                    dezoomify_path=additional_args["dezoomify-path"],
+                    dezoomify_args=additional_args["dezoomify-args"],
+                    allow_insecure=allow_insecure,
+                ):
+                    succeeded += 1
+                else:
+                    failed += 1
+            # pylint: disable-next=broad-exception-caught
+            except Exception:
+                logger.exception(
+                    "Unexpected error downloading page %s of document %s", page.identifier, document.source_url
+                )
+                return PageDownloadResult(succeeded, failed + 1, len(document.pages) - index - 1)
+        return PageDownloadResult(succeeded, failed)

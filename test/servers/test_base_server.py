@@ -1,6 +1,8 @@
 """Tests for the abstract server base type."""
 
 import importlib
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
@@ -25,7 +27,7 @@ def test_get_class_name_should_format_registry_names():
 def test_get_class_from_name_should_import_helper_class(monkeypatch, example_server_type):
     """Test that the helper class is imported from the helper services module."""
 
-    class FakeGetter:
+    class FakeGetter(SimpleDomGetterMethod):
         pass
 
     fake_module = type("FakeModule", (), {"SimpleDomGetterMethod": FakeGetter})
@@ -59,6 +61,23 @@ def test_get_class_from_name_should_return_none_when_module_import_fails(monkeyp
     monkeypatch.setattr(importlib, "import_module", fake_import)
 
     assert example_server_type()._get_class_from_name("SimpleDomGetterMethod") is None
+
+
+def test_get_class_from_name_should_reject_non_getter_class(example_server_type, caplog):
+    module = SimpleNamespace(InvalidGetter=object)
+    with patch("src.servers.base_server.importlib.import_module", return_value=module):
+        result = example_server_type()._get_class_from_name("InvalidGetter")
+
+    assert result is None
+    assert "not a document getter" in caplog.text
+
+
+def test_set_next_getter_should_raise_when_getter_class_is_unavailable(example_server_type):
+    server = example_server_type()
+    server.document_info_methods = {"missing": {"instance_params": {}}}
+    with patch.object(server, "_get_class_from_name", return_value=None):
+        with pytest.raises(ValueError, match="Getter class MissingGetterMethod is unavailable"):
+            server.set_next_getter()
 
 
 def test_get_getter_name_should_return_active_getter_identifier(example_server_type):

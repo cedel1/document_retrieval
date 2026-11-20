@@ -36,6 +36,22 @@ class SubprocessRunRecorder:
 
 
 @pytest.fixture
+def certificate_discovery_error():
+    """Return a certificate-only dezoomify discovery failure."""
+    return (
+        "[ERROR] Dezoomer error: discovery failed: no discovery candidate accepted the input\n"
+        "     - custom: not a tiles.yaml file\n"
+        "     - zoomify: error sending request for url (https://example.com/image): "
+        "error:0A000086:SSL routines:certificate verify failed:ssl/statem/statem_clnt.c:2124:\n"
+        "     - iiif: error sending request for url (https://example.com/image): "
+        "error:0A000086:SSL routines:certificate verify failed:ssl/statem/statem_clnt.c:2124:\n"
+        "     - krpano: failed to download krpano metadata: error sending request for url (https://example.com/image): "
+        "error:0A000086:SSL routines:certificate verify failed:ssl/statem/statem_clnt.c:2124:\n"
+        "    Tried all of the dezoomers, none succeeded.\n"
+    )
+
+
+@pytest.fixture
 def image_url():
     """Fixture providing the sample image properties URL."""
     return IMAGE_URL

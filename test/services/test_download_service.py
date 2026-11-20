@@ -8,6 +8,7 @@ import pytest
 
 from src.services.download_service import DownloadService
 from .fixtures import (
+    certificate_discovery_error,
     dezoomify_available,
     dezoomify_missing,
     image_url,
@@ -122,3 +123,80 @@ def test_retrieve_dezoomified_image_should_not_modify_given_args_list(retrieve_i
     retrieve_image(dezoomify_args=args, allow_insecure=True)
 
     assert args == ["--largest"]
+
+
+def test_retrieve_dezoomified_image_should_warn_concisely_on_certificate_failure(
+    dezoomify_available, subprocess_run, image_url, certificate_discovery_error, caplog
+):
+    subprocess_run.result = SimpleNamespace(returncode=1, stdout="", stderr=certificate_discovery_error)
+    document_url = "https://example.com/document?page=1"
+
+    result = DownloadService.retrieve_dezoomified_image(image_url, document_url=document_url)
+
+    assert result is False
+    assert document_url in caplog.text
+    assert "--allow-insecure" in caplog.text
+    assert "contact the server owner" in caplog.text
+    assert "certificate verify failed" not in caplog.text
+    assert "Traceback" not in caplog.text
+
+
+def test_retrieve_dezoomified_image_should_log_full_certificate_details_at_debug(
+    dezoomify_available, subprocess_run, image_url, certificate_discovery_error, caplog
+):
+    subprocess_run.result = SimpleNamespace(returncode=1, stdout="", stderr=certificate_discovery_error)
+
+    with caplog.at_level("DEBUG"):
+        DownloadService.retrieve_dezoomified_image(image_url)
+
+    assert certificate_discovery_error.strip() in caplog.text
+
+
+def test_retrieve_dezoomified_image_should_not_hide_mixed_download_errors(
+    dezoomify_available, subprocess_run, image_url, certificate_discovery_error, caplog
+):
+    stderr = certificate_discovery_error + "     - deepzoom: error sending request for url (x): connection timed out\n"
+    subprocess_run.result = SimpleNamespace(returncode=1, stdout="", stderr=stderr)
+
+    result = DownloadService.retrieve_dezoomified_image(image_url)
+
+    assert result is False
+    assert "connection timed out" in caplog.text
+    assert "certificate verify failed" in caplog.text
+    assert "--allow-insecure" not in caplog.text
+
+
+def test_retrieve_dezoomified_image_should_not_hide_unrecognized_discovery_failure(
+    dezoomify_available, subprocess_run, image_url, certificate_discovery_error, caplog
+):
+    stderr = certificate_discovery_error + "     - other: not a valid response\n"
+    subprocess_run.result = SimpleNamespace(returncode=1, stdout="", stderr=stderr)
+
+    DownloadService.retrieve_dezoomified_image(image_url)
+
+    assert "not a valid response" in caplog.text
+    assert "--allow-insecure" not in caplog.text
+
+
+def test_retrieve_dezoomified_image_should_not_hide_whitespace_only_discovery_reason(
+    dezoomify_available, subprocess_run, image_url, certificate_discovery_error, caplog
+):
+    stderr = certificate_discovery_error + "     - other: " + " " * 10000 + "\n"
+    subprocess_run.result = SimpleNamespace(returncode=1, stdout="", stderr=stderr)
+
+    DownloadService.retrieve_dezoomified_image(image_url)
+
+    assert "certificate verify failed" in caplog.text
+    assert "--allow-insecure" not in caplog.text
+
+
+def test_retrieve_dezoomified_image_should_not_treat_other_tls_failure_as_certificate_failure(
+    dezoomify_available, subprocess_run, image_url, certificate_discovery_error, caplog
+):
+    stderr = certificate_discovery_error.replace("certificate verify failed", "handshake failure")
+    subprocess_run.result = SimpleNamespace(returncode=1, stdout="", stderr=stderr)
+
+    DownloadService.retrieve_dezoomified_image(image_url)
+
+    assert "handshake failure" in caplog.text
+    assert "--allow-insecure" not in caplog.text

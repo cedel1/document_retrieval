@@ -11,7 +11,13 @@ from requests import HTTPError
 from requests.exceptions import SSLError
 from typing_extensions import override
 
-from src.helper_services.base_getter import BaseGetterMethod, SSL_ERROR_HINT
+from src.helper_services.base_getter import (
+    BaseGetterMethod,
+    MetadataSearch,
+    PageSearch,
+    is_certificate_verification_error,
+    report_certificate_failure,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +38,9 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             None: Subclasses must define their own initialization logic.
         """
         super().__init__(instance_params)
-        self.document_page_source: Optional[BeautifulSoup | str] = None
+        self.document_page_source: Optional[BeautifulSoup] = None
 
-    def get_document_source(self, document_url: str) -> BeautifulSoup | str | None:
+    def get_document_source(self, document_url: str) -> BeautifulSoup | None:
         """Get the HTML source of a document page.
 
         Args:
@@ -52,14 +58,16 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             self.document_page_source = BeautifulSoup(response.content, "html.parser")
             return self.document_page_source
         except SSLError as e:
-            logger.exception(SSL_ERROR_HINT, document_url, e)
-            raise ValueError(f"Certificate validation failed for {document_url}: {e}") from e
+            if is_certificate_verification_error(e):
+                raise report_certificate_failure(document_url, document_url) from e
+            logger.exception("SSL error fetching document %s: %s", document_url, e)
+            raise ValueError(f"SSL error fetching document {document_url}: {e}") from e
         except HTTPError as e:
             logger.debug("Basic request failed: %s", e)
             return None
 
     @override
-    def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
+    def get_pages(self, document_url: str, search_parameter: PageSearch) -> list[str]:
         """Get the pages of a document.
 
         Args:
@@ -83,7 +91,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         return []
 
     @override
-    def get_title(self, document_url: str, search_parameter: str) -> str | Any:
+    def get_title(self, document_url: str, search_parameter: MetadataSearch) -> str:
         """Get the title of a document.
 
         Args:
@@ -96,7 +104,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document title: %s")
 
     @override
-    def get_subtitle(self, document_url: str, search_parameter: str) -> str | Any:
+    def get_subtitle(self, document_url: str, search_parameter: MetadataSearch) -> str:
         """Get the subtitle of a document.
 
         Args:
@@ -109,7 +117,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document subtitle: %s")
 
     @override
-    def get_part_title(self, document_url: str, search_parameter: str) -> str | Any:
+    def get_part_title(self, document_url: str, search_parameter: MetadataSearch) -> str:
         """Get the title of a document part.
 
         Args:
@@ -122,7 +130,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document part title: %s")
 
     @override
-    def get_part_subtitle(self, document_url: str, search_parameter: str) -> str | Any:
+    def get_part_subtitle(self, document_url: str, search_parameter: MetadataSearch) -> str:
         """Get the subtitle of a document part.
 
         Args:
@@ -134,7 +142,9 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         """
         return self._get_elements_text(document_url, search_parameter, "Failed to retrieve document part subtitle: %s")
 
-    def _extract_uuids_from_divs_with_id_pattern(self, soup, search_pattern: dict | str) -> List[str]:
+    def _extract_uuids_from_divs_with_id_pattern(
+        self, soup: BeautifulSoup | None, search_pattern: PageSearch
+    ) -> List[str]:
         """Extract UUIDs from div elements with id matching a pattern.
 
         Args:
@@ -176,7 +186,9 @@ class SimpleDomGetterMethod(BaseGetterMethod):
                 logger.debug("Found page UUID: %s", page_uuid)
         return page_uuids
 
-    def _get_elements_text(self, document_url: str, xpath: str, exception_text: str) -> str:
+    def _get_elements_text(self, document_url: str, xpath: MetadataSearch, exception_text: str) -> str:
+        if not isinstance(xpath, str):
+            raise ValueError("DOM metadata search must be an XPath string")
         try:
             return " ".join(
                 [

@@ -63,3 +63,16 @@ def test_create_properties_file_should_record_allow_insecure_separately(
     content = (doc_dir / "properties.txt").read_text(encoding="utf-8")
     assert f"Allow insecure: {expected}" in content
     assert "Dezoomify-rs args: --largest\n" in content
+
+
+def test_create_properties_file_should_preserve_existing_directory(tmp_path):
+    doc_dir = tmp_path / "doc-123"
+    doc_dir.mkdir()
+    properties = doc_dir / "properties.txt"
+    properties.write_text("existing", encoding="utf-8")
+    document = BaseDocument("doc-123", output_dir=str(doc_dir))
+
+    with pytest.raises(FileExistsError):
+        document.create_properties_file()
+
+    assert properties.read_text(encoding="utf-8") == "existing"
