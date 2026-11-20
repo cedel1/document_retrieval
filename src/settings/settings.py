@@ -16,6 +16,7 @@ for ``PATH`` lookup.
 from __future__ import annotations
 
 import argparse
+import logging
 import tomllib
 from functools import partial
 from dataclasses import dataclass, field
@@ -24,12 +25,15 @@ from typing import Any, Callable, Iterable, Optional
 
 from pathvalidate.argparse import validate_filepath_arg
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_CONFIG_NAME = "document_retrieval.toml"
 DEFAULT_OUTPUT = "output"
 DEFAULT_DEZOOMIFY_PATH = "dezoomify-rs"
 
 LIBRARY_TABLE_KEY = "library"
-LIBRARY_KEYS = frozenset({"dezoomify_args"})
+ACCEPT_INVALID_CERTS_ARG = "--accept-invalid-certs"
+LIBRARY_KEYS = frozenset({"dezoomify_args", "allow_insecure"})
 
 
 class ConfigError(ValueError):
@@ -139,11 +143,13 @@ def _top_level_validators(base_dir: Path) -> dict[str, Callable[[str, Any], Any]
         "pages": _validate_pages,
         "dezoomify_path": partial(_validate_path_or_bare_name, base_dir=base_dir),
         "dezoomify_args": _validate_str_list,
+        "allow_insecure": _validate_bool,
     }
 
 
 _LIBRARY_VALIDATORS: dict[str, Callable[[str, Any], Any]] = {
     "dezoomify_args": _validate_str_list,
+    "allow_insecure": _validate_bool,
 }
 
 
@@ -239,6 +245,8 @@ class Settings:  # pylint: disable=too-many-instance-attributes
         dezoomify_path: Path of the dezoomify-rs executable.
         dezoomify_args: Global additional dezoomify-rs arguments.
         library_dezoomify_args: Per-library dezoomify-rs arguments keyed by ``library_name``.
+        allow_insecure: Whether certificate validation is disabled (``False`` means certificates are validated).
+        library_allow_insecure: Per-library ``allow_insecure`` values keyed by ``library_name``.
     """
 
     documents_file: Optional[str] = None
@@ -249,6 +257,8 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     dezoomify_path: str = DEFAULT_DEZOOMIFY_PATH
     dezoomify_args: list[str] = field(default_factory=list)
     library_dezoomify_args: dict[str, list[str]] = field(default_factory=dict)
+    allow_insecure: bool = False
+    library_allow_insecure: dict[str, bool] = field(default_factory=dict)
 
     def dezoomify_args_for(self, library_name: str) -> list[str]:
         """Return the dezoomify-rs arguments for a library.
@@ -261,12 +271,25 @@ class Settings:  # pylint: disable=too-many-instance-attributes
         """
         return list(self.library_dezoomify_args.get(library_name, self.dezoomify_args))
 
+    def allow_insecure_for(self, library_name: str) -> bool:
+        """Return whether certificate validation is disabled for a library.
+
+        Args:
+            library_name: ``library_name`` of the library.
+
+        Returns:
+            The library-specific value when configured, otherwise the global value.
+        """
+        return self.library_allow_insecure.get(library_name, self.allow_insecure)
+
 
 def resolve_settings(args: argparse.Namespace, config: Optional[dict[str, Any]] = None) -> Settings:
     """Merge command-line options over the config file over the built-in defaults.
 
     A command-line option counts as given when its value is not ``None``. A ``--dezoomify-args`` value
     replaces the global config value and also all per-library values, because the command line always wins.
+    The same holds for ``--allow-insecure`` / ``--no-allow-insecure``. The built-in default ``False`` only applies
+    when neither the command line nor the config file set a value; it never overrides a library table.
 
     Args:
         args: Parsed command-line options; options not given must be ``None``.
@@ -284,7 +307,10 @@ def resolve_settings(args: argparse.Namespace, config: Optional[dict[str, Any]] 
     cli_dezoomify_args = getattr(args, "dezoomify_args", None)
     library_args = {} if cli_dezoomify_args is not None else _library_dezoomify_args(config)
 
-    return Settings(
+    cli_allow_insecure = getattr(args, "allow_insecure", None)
+    library_insecure = {} if cli_allow_insecure is not None else _library_allow_insecure(config)
+
+    settings = Settings(
         documents_file=pick("documents_file"),
         output=pick("output", DEFAULT_OUTPUT),
         processes=pick("processes"),
@@ -293,7 +319,11 @@ def resolve_settings(args: argparse.Namespace, config: Optional[dict[str, Any]] 
         dezoomify_path=pick("dezoomify_path", DEFAULT_DEZOOMIFY_PATH),
         dezoomify_args=pick("dezoomify_args", []),
         library_dezoomify_args=library_args,
+        allow_insecure=pick("allow_insecure", False),
+        library_allow_insecure=library_insecure,
     )
+    _warn_about_settings(settings, config)
+    return settings
 
 
 def _library_dezoomify_args(config: dict[str, Any]) -> dict[str, list[str]]:
@@ -303,3 +333,36 @@ def _library_dezoomify_args(config: dict[str, Any]) -> dict[str, list[str]]:
         for name, table in config.get(LIBRARY_TABLE_KEY, {}).items()
         if "dezoomify_args" in table
     }
+
+
+def _library_allow_insecure(config: dict[str, Any]) -> dict[str, bool]:
+    """Extract per-library ``allow_insecure`` values from a validated config."""
+    return {
+        name: table["allow_insecure"]
+        for name, table in config.get(LIBRARY_TABLE_KEY, {}).items()
+        if "allow_insecure" in table
+    }
+
+
+def _warn_about_settings(settings: Settings, config: dict[str, Any]) -> None:
+    """Log warnings for disabled certificate validation and for contradicting dezoomify-rs arguments.
+
+    The global values are checked once; libraries are checked only when their config table sets a relevant value,
+    since all other libraries inherit the global values.
+    """
+    _warn_about_scope("global settings", settings.allow_insecure, settings.dezoomify_args)
+    for name in config.get(LIBRARY_TABLE_KEY, {}):
+        if name in settings.library_allow_insecure or name in settings.library_dezoomify_args:
+            _warn_about_scope(f"library {name}", settings.allow_insecure_for(name), settings.dezoomify_args_for(name))
+
+
+def _warn_about_scope(scope: str, allow_insecure: bool, dezoomify_args: list[str]) -> None:
+    """Log the certificate-related warnings for one scope (global settings or a single library)."""
+    if allow_insecure:
+        logger.warning("Certificate validation is disabled for %s (allow_insecure).", scope)
+    elif ACCEPT_INVALID_CERTS_ARG in dezoomify_args:
+        logger.warning(
+            "dezoomify_args for %s contain %s, but allow_insecure is false; the argument is passed unchanged.",
+            scope,
+            ACCEPT_INVALID_CERTS_ARG,
+        )

@@ -107,7 +107,10 @@ class BaseDocument(ABC):
         return self.output_dir / "properties.txt"
 
     def create_properties_file(
-        self, dezoomify_path: Optional[str] = None, dezoomify_args: Optional[List[str]] = None
+        self,
+        dezoomify_path: Optional[str] = None,
+        dezoomify_args: Optional[List[str]] = None,
+        allow_insecure: bool = False,
     ) -> None:
         """Write a download-style properties file using the document's fields.
 
@@ -118,6 +121,7 @@ class BaseDocument(ABC):
         Args:
             dezoomify_path: Optional path to the dezoomify executable.
             dezoomify_args: Optional list of dezoomify command-line arguments.
+            allow_insecure: Whether certificate validation is disabled; recorded separately from the arguments.
 
         Returns:
             None: The metadata file is written to the document's output directory.
@@ -137,6 +141,7 @@ class BaseDocument(ABC):
                 properties_file.write(f"Page count: {len(self.page_uuids)}\n")
                 properties_file.write(f"Dezoomify-rs path: {dezoomify_path}\n")
                 properties_file.write(f"Dezoomify-rs args: {' '.join(dezoomify_args or [])}\n")
+                properties_file.write(f"Allow insecure: {str(allow_insecure).lower()}\n")
                 properties_file.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             logger.debug("Created properties file at %s", self.properties_path)
         # pylint: disable-next=broad-exception-caught

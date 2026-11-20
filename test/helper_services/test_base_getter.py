@@ -3,8 +3,10 @@
 from typing import Any
 
 import pytest
+import urllib3
 
 from src.helper_services.base_getter import BaseGetterMethod
+from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 
 
 @pytest.fixture
@@ -63,3 +65,20 @@ def test_get_subtitle_should_raise_not_implemented_on_base_class():
     """Test that the abstract get_subtitle method raises NotImplementedError when invoked directly."""
     with pytest.raises(NotImplementedError, match="This method should be implemented in subclasses"):
         BaseGetterMethod.get_subtitle(None, "https://example.com", "//h2")
+
+
+@pytest.mark.parametrize(
+    "instance_params, expected_calls",
+    [
+        ({}, []),
+        ({"allow_insecure": False}, []),
+        ({"allow_insecure": True}, [(urllib3.exceptions.InsecureRequestWarning,)]),
+    ],
+)
+def test_init_should_suppress_urllib3_warning_only_when_allow_insecure(monkeypatch, instance_params, expected_calls):
+    calls = []
+    monkeypatch.setattr(urllib3, "disable_warnings", lambda *args: calls.append(args))
+
+    SimpleDomGetterMethod(instance_params)
+
+    assert calls == expected_calls

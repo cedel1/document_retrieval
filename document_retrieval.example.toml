@@ -20,6 +20,11 @@ output = "output"
 # Page UUIDs to download instead of automatic discovery
 # pages = ["uuid:11111111-1111-1111-1111-111111111111"]
 
+# Disable website certificate validation (default: false, certificates are validated). SECURITY: with true the
+# connection can be intercepted or spoofed; use only for sites you trust. Also passes --accept-invalid-certs to
+# dezoomify-rs. --allow-insecure / --no-allow-insecure on the command line override this, including library tables.
+# allow_insecure = true
+
 # dezoomify-rs executable (default: "dezoomify-rs", looked up on PATH) and extra arguments for it.
 # A path with a directory part, e.g. "./bin/dezoomify-rs", is relative to this file's directory.
 # dezoomify_path = "/usr/local/bin/dezoomify-rs"
@@ -28,3 +33,4 @@ output = "output"
 # Library-dependent settings. The table name must equal the library_name of the library exactly.
 # [library.Library_DSMO]
 # dezoomify_args = ["--max-width", "4000"]
+# allow_insecure = true

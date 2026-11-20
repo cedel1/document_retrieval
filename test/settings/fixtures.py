@@ -38,6 +38,7 @@ def cli_args():
             "pages": None,
             "dezoomify_path": None,
             "dezoomify_args": None,
+            "allow_insecure": None,
         }
         defaults.update(values)
         return Namespace(**defaults)

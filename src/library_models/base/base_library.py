@@ -73,6 +73,7 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
         page_detail_url: str,
         output_dir: str = "output",
         page_uuids: Optional[Sequence[str]] = None,
+        allow_insecure: bool = False,
     ) -> BaseDocument:
         """Preprocess a document before processing.
 
@@ -81,6 +82,7 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
             page_detail_url: The detail URL for the document.
             output_dir: Directory used to store generated document artifacts.
             page_uuids: Optional page identifiers to attach immediately.
+            allow_insecure: Whether certificate validation is disabled for requests made while preprocessing.
 
         Returns:
             BaseDocument: The preprocessed document.
@@ -119,11 +121,16 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
         # Placeholder for actual processing logic
         print(f"Processing document {document} from library {self} with args {additional_args} into {output_dir}")
         print(f"additional_args: {additional_args}")
+        allow_insecure = additional_args.get("allow-insecure", False)
         document.create_properties_file(
-            dezoomify_path=additional_args["dezoomify-path"], dezoomify_args=additional_args["dezoomify-args"]
+            dezoomify_path=additional_args["dezoomify-path"],
+            dezoomify_args=additional_args["dezoomify-args"],
+            allow_insecure=allow_insecure,
         )
         for page in document.pages:
             print(f"Processing page {page} of document {document}")
             page.download(
-                dezoomify_path=additional_args["dezoomify-path"], dezoomify_args=additional_args["dezoomify-args"]
+                dezoomify_path=additional_args["dezoomify-path"],
+                dezoomify_args=additional_args["dezoomify-args"],
+                allow_insecure=allow_insecure,
             )

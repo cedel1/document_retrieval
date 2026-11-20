@@ -1,10 +1,19 @@
 """Abstract getter interfaces for document page discovery."""
 
+import logging
 from typing import Any
 
+import urllib3
 from abcmeta import ABC, abstractmethod
 
 IMPLEMENT_IN_SUBCLASSES = "This method should be implemented in subclasses."
+
+logger = logging.getLogger(__name__)
+
+SSL_ERROR_HINT = (
+    "Certificate validation failed for %s: %s. If you trust this site, disable validation with --allow-insecure "
+    "or allow_insecure = true (top level or in [library.<library_name>]) in the config file."
+)
 
 
 # pylint: disable-next=too-few-public-methods
@@ -19,7 +28,14 @@ class BaseGetterMethod(ABC):
         Args:
             instance_params: Dictionary containing configuration parameters for the getter.
                              Must include 'identifier_pattern' for document identifier extraction.
+                             An optional 'allow_insecure' (default False) disables certificate validation.
         """
+        self.allow_insecure: bool = isinstance(instance_params, dict) and bool(
+            instance_params.get("allow_insecure", False)
+        )
+        if self.allow_insecure:
+            # The user opted in explicitly and is warned once when the settings are resolved
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     @abstractmethod
     def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:

@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from src.library_models.base.base_document import BaseDocument
 from test.library_models.base.fixtures import dummy_page_class
 
@@ -47,3 +49,17 @@ def test_create_properties_file_should_write_expected_content(tmp_path, dummy_pa
     assert "    page-1" in content
     assert "Dezoomify-rs path: /tool/dezoomify-rs" in content
     assert "Dezoomify-rs args: --largest --max-width 4000" in content
+
+
+@pytest.mark.parametrize("allow_insecure, expected", [(True, "true"), (False, "false")])
+def test_create_properties_file_should_record_allow_insecure_separately(
+    tmp_path, dummy_page_class, allow_insecure, expected
+):
+    doc_dir = tmp_path / "doc-123"
+    document = BaseDocument("doc-123", output_dir=str(doc_dir), pages=[])
+
+    document.create_properties_file(dezoomify_path="/tool", dezoomify_args=["--largest"], allow_insecure=allow_insecure)
+
+    content = (doc_dir / "properties.txt").read_text(encoding="utf-8")
+    assert f"Allow insecure: {expected}" in content
+    assert "Dezoomify-rs args: --largest\n" in content

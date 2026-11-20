@@ -59,11 +59,11 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
         return []
 
     @staticmethod
-    def _setup_selenium_options():
+    def _setup_selenium_options(allow_insecure: bool = False):
         """Build the Chrome options used for JavaScript-rendered page discovery.
 
         Args:
-            None: This helper does not accept positional arguments.
+            allow_insecure: When True, certificate errors are ignored; otherwise certificates are validated.
 
         Returns:
             Options: Selenium Chrome options configured for the automation flow.
@@ -79,8 +79,9 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--ignore-certificate-errors")
-        chrome_options.add_argument("--allow-running-insecure-content")
+        if allow_insecure:
+            chrome_options.add_argument("--ignore-certificate-errors")
+            chrome_options.add_argument("--allow-running-insecure-content")
         return chrome_options
 
     def _try_selenium_dom_request(self, document_url: str) -> str:
@@ -109,7 +110,7 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
             return ""
 
         logger.debug("Trying with Selenium for JavaScript-rendered content...")
-        chrome_options = self._setup_selenium_options()
+        chrome_options = self._setup_selenium_options(self.allow_insecure)
 
         try:
             driver = webdriver.Chrome(options=chrome_options)

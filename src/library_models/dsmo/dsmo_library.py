@@ -45,6 +45,7 @@ class DSMOLibrary(BaseLibrary):
         page_detail_url: str,
         output_dir: str = "output",
         page_uuids: Optional[Sequence[str]] = None,
+        allow_insecure: bool = False,
     ) -> DSMODocument:
         """Preprocess a document before processing.
 
@@ -53,6 +54,7 @@ class DSMOLibrary(BaseLibrary):
             page_detail_url: The base server URL for the document page.
             output_dir: Directory used to store generated document artifacts.
             page_uuids: Optional page identifiers to attach immediately.
+            allow_insecure: Whether certificate validation is disabled for requests made while preprocessing.
 
         Returns:
             DSMODocument: The preprocessed document.
@@ -61,7 +63,9 @@ class DSMOLibrary(BaseLibrary):
             ValueError: If the document URL does not belong to this library.
         """
         output_path = str(Path(output_dir + "/" + self.library_name))
-        with DSMOLibrary.server_type() as server_instance:  # NOSONAR  # creates instance of BaseServerType subclass
+        with DSMOLibrary.server_type(  # NOSONAR  # creates instance of BaseServerType subclass
+            allow_insecure=allow_insecure
+        ) as server_instance:
             document = DSMODocumentFactory.from_url(
                 library=self,
                 server_instance=server_instance,

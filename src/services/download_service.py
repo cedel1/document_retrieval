@@ -8,6 +8,8 @@ import subprocess
 import time
 from typing import List, Optional
 
+from src.settings.settings import ACCEPT_INVALID_CERTS_ARG
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,6 +61,7 @@ class DownloadService:
         output_base: str = "output",
         dezoomify_path: str = "dezoomify-rs",
         dezoomify_args: Optional[List[str]] = None,
+        allow_insecure: bool = False,
     ) -> bool:
         """Download the dezoomified image for one page UUID.
 
@@ -67,6 +70,8 @@ class DownloadService:
             output_base: Base output path to use when storing the downloaded image.
             dezoomify_path: Path or command name of the dezoomify executable.
             dezoomify_args: Optional additional command-line arguments.
+            allow_insecure: When True, ``--accept-invalid-certs`` is passed to dezoomify-rs (unless already
+                present in ``dezoomify_args``); otherwise certificates are validated, which is its default.
 
         Returns:
             bool: True when the image download succeeds, otherwise False.
@@ -78,8 +83,9 @@ class DownloadService:
             logger.error("Or download from: https://github.com/lovasoa/dezoomify-rs/releases")
             return False
 
-        if dezoomify_args is None:
-            dezoomify_args = []
+        dezoomify_args = list(dezoomify_args or [])
+        if allow_insecure and ACCEPT_INVALID_CERTS_ARG not in dezoomify_args:
+            dezoomify_args.append(ACCEPT_INVALID_CERTS_ARG)
 
         logger.info("Using dezoomify-rs to download image from: %s", properties_download_url)
 

@@ -5,7 +5,7 @@ import os
 import sys
 from multiprocessing.pool import AsyncResult
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import ANY, Mock, patch, MagicMock
 
 import pytest
 
@@ -84,6 +84,7 @@ def test_get_library_document_should_return_document_on_success(mock_library, mo
         page_detail_url=mock_library_instance.page_detail_url,
         output_dir="output",
         page_uuids=None,
+        allow_insecure=False,
     )
 
 
@@ -293,7 +294,11 @@ def test_build_additional_args_should_include_dezoomify_path_and_args():
     """Test that dezoomify path and args are always present."""
     settings = Settings(dezoomify_path="/dz", dezoomify_args=["--a"])
 
-    assert build_additional_args(settings, "Lib") == {"dezoomify-path": "/dz", "dezoomify-args": ["--a"]}
+    assert build_additional_args(settings, "Lib") == {
+        "dezoomify-path": "/dz",
+        "dezoomify-args": ["--a"],
+        "allow-insecure": False,
+    }
 
 
 def test_build_additional_args_should_include_pages_when_set():
@@ -315,7 +320,11 @@ def test_main_should_use_values_from_explicit_config_file(main_env):
     main(["--config", str(config)])
 
     main_env.preprocess.assert_called_once_with(
-        main_env.tmp_path / "docs.txt", output_dir=str(main_env.tmp_path / "out"), page_uuids=None, processes=2
+        main_env.tmp_path / "docs.txt",
+        output_dir=str(main_env.tmp_path / "out"),
+        page_uuids=None,
+        processes=2,
+        settings=ANY,
     )
 
 
@@ -326,7 +335,9 @@ def test_main_should_prefer_cli_options_over_config_file(main_env):
 
     main(["--config", str(config), "--documents_file", "cli.txt", "--output", cli_output, "--processes", "4"])
 
-    main_env.preprocess.assert_called_once_with(Path("cli.txt"), output_dir=cli_output, page_uuids=None, processes=4)
+    main_env.preprocess.assert_called_once_with(
+        Path("cli.txt"), output_dir=cli_output, page_uuids=None, processes=4, settings=ANY
+    )
 
 
 def test_main_should_auto_load_config_from_script_directory(main_env):
@@ -385,7 +396,11 @@ def test_main_should_pass_library_specific_dezoomify_args_to_processing(main_env
     main(["--config", str(config)])
 
     additional_args = main_env.process.call_args.args[1]
-    assert additional_args == {"dezoomify-path": "dezoomify-rs", "dezoomify-args": ["--l"]}
+    assert additional_args == {
+        "dezoomify-path": "dezoomify-rs",
+        "dezoomify-args": ["--l"],
+        "allow-insecure": False,
+    }
 
 
 @pytest.mark.parametrize("argv, expected", [(["--verbose"], True), (["--no-verbose"], False)])
@@ -403,3 +418,65 @@ def test_main_should_let_no_verbose_override_verbose_config(main_env):
         main(["--config", config_arg, "--no-verbose"])
 
     assert basic_config.call_args.kwargs["level"] == logging.INFO
+
+
+@pytest.mark.parametrize("library_name, expected", [("Lib", True), ("Other", False)])
+def test_build_additional_args_should_include_allow_insecure_for_library(library_name, expected):
+    settings = Settings(allow_insecure=False, library_allow_insecure={"Lib": True})
+
+    assert build_additional_args(settings, library_name)["allow-insecure"] is expected
+
+
+@pytest.mark.parametrize("argv, expected", [([], None), (["--allow-insecure"], True), (["--no-allow-insecure"], False)])
+def test_build_parser_should_parse_allow_insecure(argv, expected):
+    assert build_parser().parse_args(argv).allow_insecure is expected
+
+
+def test_get_library_document_should_pass_allow_insecure_to_library(mock_library, mock_document):
+    mock_library_class = Mock(return_value=mock_library)
+    mock_library.preprocess_document_from_url.return_value = mock_document
+
+    get_library_document("https://example.com/doc", "output", None, mock_library_class, True)
+
+    assert mock_library.preprocess_document_from_url.call_args.kwargs["allow_insecure"] is True
+
+
+def test_preprocess_documents_should_pass_library_allow_insecure_to_worker(temp_documents_file, mock_library):
+    mock_library.library_name = "Library_DSMO"
+    settings = Settings(library_allow_insecure={"Library_DSMO": True})
+
+    with patch("document_retrieval.LibraryFactory") as mock_factory, patch("document_retrieval.Pool") as mock_pool:
+        mock_factory.from_url.return_value = mock_library
+        pool = MagicMock()
+        mock_pool.return_value.__enter__.return_value = pool
+        pool.apply_async.return_value.get.return_value = (Mock(title="t", identifier="i"), str(mock_library))
+
+        preprocess_documents(temp_documents_file, "output", None, settings=settings)
+
+    assert all(call.kwargs["args"][4] is True for call in pool.apply_async.call_args_list)
+
+
+def test_main_should_pass_allow_insecure_from_config_per_library(main_env):
+    config = main_env.write_config('documents_file = "docs.txt"\n[library.Library_DSMO]\nallow_insecure = true\n')
+
+    main(["--config", str(config)])
+
+    assert main_env.process.call_args.args[1]["allow-insecure"] is True
+
+
+def test_main_should_let_cli_no_allow_insecure_override_config(main_env):
+    config = main_env.write_config(
+        'documents_file = "docs.txt"\nallow_insecure = true\n[library.Library_DSMO]\nallow_insecure = true\n'
+    )
+
+    main(["--config", str(config), "--no-allow-insecure"])
+
+    assert main_env.process.call_args.args[1]["allow-insecure"] is False
+
+
+def test_main_should_validate_certificates_by_default(main_env):
+    config = main_env.write_config('documents_file = "docs.txt"\n')
+
+    main(["--config", str(config)])
+
+    assert main_env.process.call_args.args[1]["allow-insecure"] is False

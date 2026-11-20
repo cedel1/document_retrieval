@@ -28,8 +28,8 @@ def dummy_page():
         def __init__(self):
             self.called = []
 
-        def download(self, dezoomify_path, dezoomify_args):
-            self.called.append((dezoomify_path, dezoomify_args))
+        def download(self, dezoomify_path, dezoomify_args, allow_insecure=False):
+            self.called.append((dezoomify_path, dezoomify_args, allow_insecure))
 
     return DummyPage
 
@@ -43,8 +43,12 @@ def dummy_document(dummy_page):
             self.source_url = "https://example.com/doc"
             self.pages = [dummy_page()]
 
-        def create_properties_file(self, dezoomify_path, dezoomify_args):
-            return {"dezoomify_path": dezoomify_path, "dezoomify_args": dezoomify_args}
+        def create_properties_file(self, dezoomify_path, dezoomify_args, allow_insecure=False):
+            return {
+                "dezoomify_path": dezoomify_path,
+                "dezoomify_args": dezoomify_args,
+                "allow_insecure": allow_insecure,
+            }
 
     return DummyDocument
 
@@ -84,8 +88,20 @@ def test_process_document_should_call_create_properties_file_and_page_download(
 
     library.process_document(document, {"dezoomify-path": "/tool", "dezoomify-args": ["--largest"]}, "/tmp/out")
 
-    assert document.pages[0].called == [("/tool", ["--largest"])]
+    assert document.pages[0].called == [("/tool", ["--largest"], False)]
     assert any("Processing document" in str(part) for call in calls for part in call)
+
+
+def test_process_document_should_pass_allow_insecure_to_pages(monkeypatch, concrete_library, dummy_document):
+    library = concrete_library("https://example.com/")
+    document = dummy_document()
+    monkeypatch.setattr("builtins.print", lambda *args, **kwargs: None)
+
+    library.process_document(
+        document, {"dezoomify-path": "/tool", "dezoomify-args": [], "allow-insecure": True}, "/tmp/out"
+    )
+
+    assert document.pages[0].called == [("/tool", [], True)]
 
 
 def test_get_document_base_server_url_should_raise_for_non_matching_url(concrete_library):

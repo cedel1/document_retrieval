@@ -322,3 +322,117 @@ def test_dezoomify_args_for_should_return_copy_of_args():
     settings.dezoomify_args_for("Any").append("--b")
 
     assert settings.dezoomify_args == ["--a"]
+
+
+def test_resolve_settings_should_validate_certificates_by_default(cli_args):
+    settings = resolve_settings(cli_args())
+
+    assert settings.allow_insecure is False
+    assert settings.allow_insecure_for(LIBRARY_NAME) is False
+
+
+def test_resolve_settings_should_use_top_level_allow_insecure_from_config(cli_args):
+    settings = resolve_settings(cli_args(), {"allow_insecure": True})
+
+    assert settings.allow_insecure_for(LIBRARY_NAME) is True
+
+
+def test_resolve_settings_should_prefer_library_allow_insecure_over_top_level(cli_args):
+    config = {"allow_insecure": False, "library": {LIBRARY_NAME: {"allow_insecure": True}}}
+
+    settings = resolve_settings(cli_args(), config)
+
+    assert settings.allow_insecure is False
+    assert settings.allow_insecure_for(LIBRARY_NAME) is True
+    assert settings.allow_insecure_for("Other") is False
+
+
+def test_resolve_settings_should_not_override_library_value_with_default(cli_args):
+    config = {"library": {LIBRARY_NAME: {"allow_insecure": True}}}
+
+    assert resolve_settings(cli_args(), config).allow_insecure_for(LIBRARY_NAME) is True
+
+
+@pytest.mark.parametrize("cli_value", [True, False])
+def test_resolve_settings_should_let_cli_allow_insecure_override_library_tables(cli_args, cli_value):
+    config = {"allow_insecure": not cli_value, "library": {LIBRARY_NAME: {"allow_insecure": not cli_value}}}
+
+    settings = resolve_settings(cli_args(allow_insecure=cli_value), config)
+
+    assert settings.allow_insecure is cli_value
+    assert settings.allow_insecure_for(LIBRARY_NAME) is cli_value
+
+
+def test_load_config_should_read_allow_insecure_at_top_level_and_in_library(write_config, known_libraries):
+    config_path = write_config(f"allow_insecure = true\n[library.{LIBRARY_NAME}]\nallow_insecure = false\n")
+
+    config = load_config(config_path, known_libraries)
+
+    assert config["allow_insecure"] is True
+    assert config["library"][LIBRARY_NAME]["allow_insecure"] is False
+
+
+@pytest.mark.parametrize("value", ['"yes"', "1", "[true]"])
+@pytest.mark.parametrize(
+    "template", ["allow_insecure = {value}\n", f"[library.{LIBRARY_NAME}]\nallow_insecure = {{value}}\n"]
+)
+def test_load_config_should_reject_non_boolean_allow_insecure(write_config, known_libraries, template, value):
+    config_path = write_config(template.format(value=value))
+
+    with pytest.raises(ConfigError, match="allow_insecure"):
+        load_config(config_path, known_libraries)
+
+
+def test_load_config_should_still_reject_unknown_library_key(write_config, known_libraries):
+    config_path = write_config(f"[library.{LIBRARY_NAME}]\nallow_insecur = true\n")
+
+    with pytest.raises(ConfigError, match="Unknown key"):
+        load_config(config_path, known_libraries)
+
+
+def test_resolve_settings_should_warn_when_global_validation_disabled(cli_args, caplog):
+    with caplog.at_level("WARNING"):
+        resolve_settings(cli_args(allow_insecure=True))
+
+    assert "Certificate validation is disabled for global settings" in caplog.text
+
+
+def test_resolve_settings_should_warn_for_library_with_validation_disabled(cli_args, caplog):
+    config = {"library": {LIBRARY_NAME: {"allow_insecure": True}}}
+
+    with caplog.at_level("WARNING"):
+        resolve_settings(cli_args(), config)
+
+    assert f"Certificate validation is disabled for library {LIBRARY_NAME}" in caplog.text
+
+
+def test_resolve_settings_should_not_warn_when_validating(cli_args, caplog):
+    with caplog.at_level("WARNING"):
+        resolve_settings(cli_args())
+
+    assert caplog.text == ""
+
+
+def test_resolve_settings_should_warn_when_accept_invalid_certs_contradicts_setting(cli_args, caplog):
+    with caplog.at_level("WARNING"):
+        settings = resolve_settings(cli_args(dezoomify_args=["--accept-invalid-certs"]))
+
+    assert "--accept-invalid-certs" in caplog.text
+    assert settings.dezoomify_args == ["--accept-invalid-certs"]
+
+
+def test_resolve_settings_should_warn_for_contradicting_library_dezoomify_args(cli_args, caplog):
+    config = {"library": {LIBRARY_NAME: {"dezoomify_args": ["--accept-invalid-certs"]}}}
+
+    with caplog.at_level("WARNING"):
+        settings = resolve_settings(cli_args(), config)
+
+    assert f"library {LIBRARY_NAME}" in caplog.text
+    assert settings.dezoomify_args_for(LIBRARY_NAME) == ["--accept-invalid-certs"]
+
+
+def test_resolve_settings_should_not_warn_about_contradiction_when_insecure(cli_args, caplog):
+    with caplog.at_level("WARNING"):
+        resolve_settings(cli_args(allow_insecure=True, dezoomify_args=["--accept-invalid-certs"]))
+
+    assert "passed unchanged" not in caplog.text
