@@ -2,4 +2,3 @@
 - add more libraries (books)
 - save more info about a document - what type it is (book, periodical etc.), is it a part of a collection (of books or another issue of a periodical)
 - add browser selection capability (when using Selenium)
-- make website certificate validation the default and add parameter to disable it. But use it where it works and don't forget dezoomify-rs

@@ -153,12 +153,15 @@ def test_getter_should_validate_certificates_by_default():
 
 
 @responses.activate
-def test_get_document_source_should_log_hint_and_return_none_on_ssl_error(document_url, caplog):
+def test_get_document_source_should_log_hint_and_raise_on_ssl_error(document_url, caplog):
     responses.add(responses.GET, document_url, body=SSLError("bad certificate"))
 
-    with caplog.at_level("ERROR"):
-        result = SimpleDomGetterMethod({}).get_document_source(document_url)
+    getter = SimpleDomGetterMethod({})
 
-    assert result is None
+    with caplog.at_level("ERROR"), pytest.raises(ValueError, match="Certificate validation failed") as exc_info:
+        getter.get_document_source(document_url)
+
+    assert document_url in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, SSLError)
     assert "--allow-insecure" in caplog.text
     assert document_url in caplog.text

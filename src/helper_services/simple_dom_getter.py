@@ -42,6 +42,9 @@ class SimpleDomGetterMethod(BaseGetterMethod):
 
         Returns:
             BeautifulSoup | None: The parsed HTML source of the document page, or None if not available.
+
+        Raises:
+            ValueError: If the server certificate validation fails.
         """
         try:
             response = requests.get(document_url, timeout=30, verify=not self.allow_insecure)
@@ -50,7 +53,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
             return self.document_page_source
         except SSLError as e:
             logger.exception(SSL_ERROR_HINT, document_url, e)
-            return None
+            raise ValueError(f"Certificate validation failed for {document_url}: {e}") from e
         except HTTPError as e:
             logger.debug("Basic request failed: %s", e)
             return None

@@ -213,15 +213,18 @@ def test_get_document_source_should_pass_verify_to_every_request(
     assert all(call.request.req_kwargs["verify"] is expected_verify for call in mocked_requests.calls)
 
 
-def test_get_document_source_should_log_hint_and_return_none_on_ssl_error(
+def test_get_document_source_should_log_hint_and_raise_on_ssl_error(
     mocked_requests, rest_api_getter, document_url, caplog
 ):
-    """Test that a certificate failure returns None and logs how to disable validation."""
+    """Test that a certificate failure raises ValueError and logs how to disable validation."""
     endpoint = re.compile(r"https://example\.com/api/search\?.*")
     mocked_requests.add(responses.GET, endpoint, body=requests.exceptions.SSLError("bad certificate"))
 
-    with caplog.at_level("ERROR"):
-        assert rest_api_getter.get_document_source(document_url) is None
+    with caplog.at_level("ERROR"), pytest.raises(ValueError, match="Certificate validation failed") as exc_info:
+        rest_api_getter.get_document_source(document_url)
+
+    assert document_url in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, requests.exceptions.SSLError)
 
     assert "--allow-insecure" in caplog.text
     assert "allow_insecure = true" in caplog.text

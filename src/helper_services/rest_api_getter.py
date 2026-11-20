@@ -97,6 +97,9 @@ class RestApiGetterMethod(BaseGetterMethod):
 
         Returns:
             Response | None: The API response, or None if the request fails.
+
+        Raises:
+            ValueError: If the server certificate validation fails.
         """
         try:
             document_identifier = self._get_document_identifier(document_url)
@@ -130,7 +133,7 @@ class RestApiGetterMethod(BaseGetterMethod):
                 document_pages_response.raise_for_status()
             except requests.exceptions.SSLError as e:
                 logger.exception(SSL_ERROR_HINT, document_url, e)
-                return None
+                raise ValueError(f"Certificate validation failed for {document_url}: {e}") from e
             except requests.RequestException as e:
                 logger.exception("Error fetching document info from REST API: %s", e)
                 return None
