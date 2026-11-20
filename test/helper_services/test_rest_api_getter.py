@@ -1,6 +1,8 @@
 """Tests for the REST API getter helper."""
 
 import re
+import ssl
+from unittest.mock import patch
 
 import pytest
 import requests
@@ -93,6 +95,31 @@ def test_init_should_raise_value_error_when_api_urls_missing():
         RestApiGetterMethod(
             {"identifier_pattern": "x", "base_api_url": "https://example.com/api", "document_api_url": "doc"}
         )
+
+
+@pytest.mark.parametrize(
+    "parameter, value",
+    [
+        ("identifier_pattern", 123),
+        ("identifier_pattern", re.compile(b"x")),
+        ("base_api_url", 123),
+        ("document_api_url", 123),
+        ("document_pages_api_url", 123),
+    ],
+)
+def test_init_should_reject_invalid_parameter_types(rest_api_getter, parameter, value):
+    params = {**rest_api_getter.instance_params, parameter: value}
+
+    with pytest.raises(ValueError, match=parameter):
+        RestApiGetterMethod(params)
+
+
+@pytest.mark.parametrize("parameter", ["base_api_url", "document_api_url", "document_pages_api_url"])
+def test_init_should_reject_empty_api_urls(rest_api_getter, parameter):
+    params = {**rest_api_getter.instance_params, parameter: ""}
+
+    with pytest.raises(ValueError, match=parameter):
+        RestApiGetterMethod(params)
 
 
 def test_recursive_get_should_return_nested_values_from_list_paths(rest_api_getter):
@@ -197,6 +224,60 @@ def test_get_json_value_should_return_empty_string_when_json_not_loaded(rest_api
     assert rest_api_getter.get_part_subtitle("", ["response", "docs", [0], "details", [0]]) == ""
 
 
+@pytest.mark.parametrize(
+    "payload, search_path",
+    [
+        ({"title": None}, "title"),
+        ({"nested": {}}, ["nested", "missing"]),
+        ({"nested": {"title": None}}, ["nested", "title"]),
+    ],
+)
+def test_get_title_should_return_empty_for_missing_metadata(rest_api_getter, payload, search_path):
+    rest_api_getter.document_json = payload
+
+    assert rest_api_getter.get_title("", search_path) == ""
+
+
+@pytest.mark.parametrize("value", [42, False, [], {}])
+def test_get_title_should_reject_non_string_metadata(rest_api_getter, value):
+    rest_api_getter.document_json = {"title": value}
+
+    with pytest.raises(ValueError, match="Invalid REST metadata.*expected a string"):
+        rest_api_getter.get_title("", "title")
+
+
+def test_get_title_should_reject_non_object_document_metadata(rest_api_getter):
+    rest_api_getter.document_json = []
+
+    with pytest.raises(ValueError, match="expected a JSON object"):
+        rest_api_getter.get_title("", "title")
+
+
+def test_get_pages_should_raise_when_document_source_is_unavailable(rest_api_getter, document_url):
+    with patch.object(rest_api_getter, "get_document_source", return_value=None):
+        with pytest.raises(ValueError, match="Could not retrieve REST document source"):
+            rest_api_getter.get_pages(document_url, {"page_object": ("response", "docs")})
+
+
+def test_get_pages_should_reject_missing_page_data(rest_api_getter, document_url):
+    rest_api_getter.document_pages_json = {"response": {}}
+    with patch.object(rest_api_getter, "get_document_source", return_value=({}, {})):
+        with pytest.raises(ValueError, match="Invalid REST page data"):
+            rest_api_getter.get_pages(document_url, {"page_object": ("response", "docs")})
+
+
+def test_get_pages_should_reject_non_string_page_identifier(document_source_getter, document_url):
+    page_search = {"page_object": ("response", "docs"), "page_id": ("missing",), "page_number": ("rels_ext_index", [0])}
+
+    with pytest.raises(ValueError, match="Invalid REST page identifier"):
+        document_source_getter.get_pages(document_url, page_search)
+
+
+def test_get_document_source_should_raise_when_identifier_is_missing(rest_api_getter):
+    with pytest.raises(ValueError, match="No document identifier found"):
+        rest_api_getter.get_document_source("https://example.com/view/no-id")
+
+
 @pytest.mark.parametrize("allow_insecure, expected_verify", [(False, True), (True, False)])
 def test_get_document_source_should_pass_verify_to_every_request(
     mocked_requests, rest_api_getter, document_url, allow_insecure, expected_verify
@@ -218,16 +299,20 @@ def test_get_document_source_should_log_hint_and_raise_on_ssl_error(
 ):
     """Test that a certificate failure raises ValueError and logs how to disable validation."""
     endpoint = re.compile(r"https://example\.com/api/search\?.*")
-    mocked_requests.add(responses.GET, endpoint, body=requests.exceptions.SSLError("bad certificate"))
+    mocked_requests.add(
+        responses.GET, endpoint, body=requests.exceptions.SSLError(ssl.SSLCertVerificationError("bad certificate"))
+    )
 
-    with caplog.at_level("ERROR"), pytest.raises(ValueError, match="Certificate validation failed") as exc_info:
+    with caplog.at_level("WARNING"), pytest.raises(ValueError, match="Certificate validation failed") as exc_info:
         rest_api_getter.get_document_source(document_url)
 
     assert document_url in str(exc_info.value)
     assert isinstance(exc_info.value.__cause__, requests.exceptions.SSLError)
 
     assert "--allow-insecure" in caplog.text
-    assert "allow_insecure = true" in caplog.text
+    assert "contact the server owner" in caplog.text
+    assert "Traceback" not in caplog.text
+    assert "bad certificate" not in caplog.text
 
 
 @pytest.mark.parametrize("extra_params, expected", [({}, False), ({"allow_insecure": True}, True)])
@@ -242,3 +327,47 @@ def test_init_should_read_allow_insecure_from_instance_params(extra_params, expe
     }
 
     assert RestApiGetterMethod(params).allow_insecure is expected
+
+
+def test_get_document_source_should_log_full_certificate_traceback_at_debug(
+    mocked_requests, rest_api_getter, document_url, caplog
+):
+    endpoint = re.compile(r"https://example\.com/api/search\?.*")
+    mocked_requests.add(
+        responses.GET, endpoint, body=requests.exceptions.SSLError(ssl.SSLCertVerificationError("bad certificate"))
+    )
+
+    with caplog.at_level("DEBUG"), pytest.raises(ValueError):
+        rest_api_getter.get_document_source(document_url)
+
+    assert "Traceback" in caplog.text
+    assert "bad certificate" in caplog.text
+
+
+def test_get_document_source_should_keep_diagnostics_for_other_ssl_errors(
+    mocked_requests, rest_api_getter, document_url, caplog
+):
+    endpoint = re.compile(r"https://example\.com/api/search\?.*")
+    mocked_requests.add(responses.GET, endpoint, body=requests.exceptions.SSLError("handshake failed"))
+
+    with caplog.at_level("ERROR"), pytest.raises(ValueError, match="SSL error"):
+        rest_api_getter.get_document_source(document_url)
+
+    assert "Traceback" in caplog.text
+    assert "--allow-insecure" not in caplog.text
+
+
+def test_get_document_source_should_warn_when_pages_request_has_invalid_certificate(
+    mocked_requests, rest_api_getter, document_url, caplog
+):
+    endpoint = re.compile(r"https://example\.com/api/search\?.*")
+    mocked_requests.add(responses.GET, endpoint, json={})
+    mocked_requests.add(
+        responses.GET, endpoint, body=requests.exceptions.SSLError(ssl.SSLCertVerificationError("bad certificate"))
+    )
+
+    with caplog.at_level("WARNING"), pytest.raises(ValueError, match="Certificate validation failed"):
+        rest_api_getter.get_document_source(document_url)
+
+    assert len(mocked_requests.calls) == 2
+    assert sum(record.levelname == "WARNING" for record in caplog.records) == 1

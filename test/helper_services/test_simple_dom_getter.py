@@ -1,6 +1,7 @@
 """Tests for the simple DOM page-discovery helper."""
 
 import re
+import ssl
 import pytest
 import responses
 from bs4 import BeautifulSoup
@@ -60,6 +61,11 @@ def test_get_pages_should_handle_http_error_from_get_document_source(
     document_source_stub.error = HTTPError("failed")
 
     assert simple_dom_getter.get_pages(document_url, page_search_pattern) == []
+
+
+def test_get_title_should_reject_non_xpath_search(simple_dom_getter, document_url):
+    with pytest.raises(ValueError, match="DOM metadata search must be an XPath string"):
+        simple_dom_getter.get_title(document_url, ["title"])
 
 
 def test_get_title_should_return_empty_when_xpath_missing(simple_dom_getter, document_source_stub, document_url):
@@ -154,14 +160,38 @@ def test_getter_should_validate_certificates_by_default():
 
 @responses.activate
 def test_get_document_source_should_log_hint_and_raise_on_ssl_error(document_url, caplog):
-    responses.add(responses.GET, document_url, body=SSLError("bad certificate"))
+    responses.add(responses.GET, document_url, body=SSLError(ssl.SSLCertVerificationError("bad certificate")))
 
     getter = SimpleDomGetterMethod({})
 
-    with caplog.at_level("ERROR"), pytest.raises(ValueError, match="Certificate validation failed") as exc_info:
+    with caplog.at_level("WARNING"), pytest.raises(ValueError, match="Certificate validation failed") as exc_info:
         getter.get_document_source(document_url)
 
     assert document_url in str(exc_info.value)
     assert isinstance(exc_info.value.__cause__, SSLError)
     assert "--allow-insecure" in caplog.text
     assert document_url in caplog.text
+    assert "Traceback" not in caplog.text
+    assert "bad certificate" not in caplog.text
+
+
+@responses.activate
+def test_get_document_source_should_log_certificate_traceback_in_debug(simple_dom_getter, document_url, caplog):
+    responses.add(responses.GET, document_url, body=SSLError(ssl.SSLCertVerificationError("bad certificate")))
+
+    with caplog.at_level("DEBUG"), pytest.raises(ValueError):
+        simple_dom_getter.get_document_source(document_url)
+
+    assert "Traceback" in caplog.text
+    assert "bad certificate" in caplog.text
+
+
+@responses.activate
+def test_get_document_source_should_keep_diagnostics_for_other_ssl_errors(simple_dom_getter, document_url, caplog):
+    responses.add(responses.GET, document_url, body=SSLError("handshake failed"))
+
+    with caplog.at_level("ERROR"), pytest.raises(ValueError, match="SSL error"):
+        simple_dom_getter.get_document_source(document_url)
+
+    assert "Traceback" in caplog.text
+    assert "--allow-insecure" not in caplog.text

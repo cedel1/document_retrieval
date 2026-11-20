@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from requests import HTTPError
 from typing_extensions import override
 
+from src.helper_services.base_getter import PageSearch
 from src.helper_services.simple_dom_getter import SimpleDomGetterMethod
 
 MSG_SELENIUM_REQUEST_FAILED = "Selenium request failed: %s"
@@ -35,7 +36,7 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
         return soup
 
     @override
-    def get_pages(self, document_url: str, search_parameter: str | dict) -> list[str]:
+    def get_pages(self, document_url: str, search_parameter: PageSearch) -> list[str]:
         """Get the pages of a document.
 
         Args:

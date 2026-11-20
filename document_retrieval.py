@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Dict, Optional, Sequence
 
 from pathvalidate.argparse import validate_filepath_arg
-from src.library_models.base.base_library import BaseLibrary
+from src.helper_services.base_getter import CertificateValidationError
+from src.library_models.base.base_library import BaseLibrary, PageDownloadResult
 from src.library_models.factories.library_factory import LibraryFactory
 from src.settings.settings import ConfigError, Settings, find_config, is_positive_int, load_config, resolve_settings
 
@@ -76,9 +77,19 @@ def get_library_document(document_url, output_dir, page_uuids, library_class, al
             allow_insecure=allow_insecure,
         )
         return document, str(library)
+    except CertificateValidationError:
+        raise
     except ValueError as e:
         logger.exception("Failed to create document for URL %s: %s", document_url, e)
-        raise e
+        raise
+
+
+def configure_worker_logging(verbose: bool) -> None:
+    """Configure logging in workers started without inherited logging handlers."""
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        level=logging.DEBUG if verbose else logging.INFO,
+    )
 
 
 def preprocess_documents(
@@ -87,7 +98,7 @@ def preprocess_documents(
     page_uuids: list[str] = None,
     processes: int | None = None,
     settings: Optional[Settings] = None,
-) -> Dict[str, BaseLibrary]:
+) -> tuple[Dict[str, BaseLibrary], list[str], int]:
     """Read a file containing document URLs and build library objects.
 
     This function reads a newline-separated file of document URLs (ignoring
@@ -105,29 +116,44 @@ def preprocess_documents(
         settings: Resolved settings; selects the per-library ``allow_insecure`` value (defaults apply when omitted).
 
     Returns:
-        A dictionary mapping library string identifiers to BaseLibrary instances
-        that contain the preprocessed documents.
+        The libraries, failed document URLs, and number of input URLs.
     """
     libraries: Dict[str, BaseLibrary] = {}
+    failed_urls: list[str] = []
+    document_urls = list(get_document_urls(documents_file_path))
+    if not document_urls:
+        logger.warning("No document URLs found in %s.", documents_file_path)
+        return libraries, failed_urls, 0
 
-    with Pool(processes=processes) as pool:  # default is None, which means use processor core number
-        results: list[AsyncResult] = []
-        for document_url in get_document_urls(documents_file_path):
+    with Pool(
+        processes=processes, initializer=configure_worker_logging, initargs=(settings.verbose if settings else False,)
+    ) as pool:
+        results: list[tuple[str, AsyncResult]] = []
+        for document_url in document_urls:
             try:
                 print(f"Preprocessing {document_url}.")
                 library = LibraryFactory.from_url(document_url)
                 libraries[str(library)] = library
-                allow_insecure = settings.allow_insecure_for(library.library_name) if settings else False
                 results.append(
-                    pool.apply_async(
-                        get_library_document,
-                        args=(document_url, output_dir, page_uuids, library.__class__, allow_insecure),
+                    (
+                        document_url,
+                        pool.apply_async(
+                            get_library_document,
+                            args=(
+                                document_url,
+                                output_dir,
+                                page_uuids,
+                                library.__class__,
+                                settings.allow_insecure_for(library.library_name) if settings else False,
+                            ),
+                        ),
                     )
                 )
-            except ValueError as e:
-                logger.exception("Failed to create library for URL %s: %s", document_url, e)
+            except ValueError:
+                logger.exception("Failed to create library for URL %s", document_url)
+                failed_urls.append(document_url)
 
-        for result in results:
+        for document_url, result in results:
             try:
                 document, library_name = result.get()
                 print(
@@ -135,13 +161,18 @@ def preprocess_documents(
                     f"library {library_name}."
                 )
                 libraries[library_name].append_preprocessed_document(document)
-            except (TimeoutError, ValueError) as e:
-                logger.exception("Failed to retrieve result: %s", e)
+            except CertificateValidationError:
+                failed_urls.append(document_url)
+            except (TimeoutError, ValueError):
+                logger.exception("Failed to retrieve result:")
+                failed_urls.append(document_url)
 
-    return libraries
+    return libraries, failed_urls, len(document_urls)
 
 
-def process_library_documents(library: BaseLibrary, additional_args: dict[str, list], output_dir: str) -> bool:
+def process_library_documents(
+    library: BaseLibrary, additional_args: dict, output_dir: str
+) -> list[tuple[str, PageDownloadResult | None]]:
     """Process every document attached to a library.
 
     Iterates over the preprocessed documents stored in the given BaseLibrary and
@@ -157,19 +188,20 @@ def process_library_documents(library: BaseLibrary, additional_args: dict[str, l
             written.
 
     Returns:
-        True when all documents processed successfully; False if any document
-        failed during processing.
+        Failed document URLs and their page outcomes, if processing reached page downloads.
     """
     failed_documents = []
     for library_document in library.documents:
         try:
-            library.process_document(library_document, additional_args, output_dir)
+            result = library.process_document(library_document, additional_args, output_dir)
+            if result.failed or result.unattempted:
+                failed_documents.append((library_document.source_url, result))
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
             logger.exception("Failed to process document %s: %s", library_document.source_url, e)
-            failed_documents.append(library_document)
+            failed_documents.append((library_document.source_url, None))
 
-    return len(failed_documents) == 0
+    return failed_documents
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -259,7 +291,7 @@ def build_additional_args(settings: Settings, library_name: str) -> dict:
     return additional_args
 
 
-def main(argv: Optional[Sequence[str]] = None):
+def main(argv: Optional[Sequence[str]] = None) -> int:
     """Main entry point: parse CLI args, merge the optional config file and process multiple documents.
 
     This script expects a path to a text file containing document URLs (one per
@@ -272,7 +304,7 @@ def main(argv: Optional[Sequence[str]] = None):
         argv: Command-line arguments (without the program name); ``None`` reads ``sys.argv``.
 
     Returns:
-        None. The function configures logging and exits with side-effects (files, logs).
+        int: Zero for success or an empty input; one if any document failed.
 
     Raises:
         ConfigError: If the config file is missing (when given explicitly) or invalid.
@@ -301,35 +333,42 @@ def main(argv: Optional[Sequence[str]] = None):
     # Create base output directory
     Path(settings.output).mkdir(parents=True, exist_ok=True)
 
-    library_results = []
-    try:
-        # Preprocess each document
-        libraries: Dict[str, BaseLibrary] = preprocess_documents(
-            Path(settings.documents_file),
-            output_dir=settings.output,
-            page_uuids=settings.pages,
-            processes=settings.processes,
-            settings=settings,
-        )
-        # Start processing per library
-        for library in libraries.values():
-            additional_args = build_additional_args(settings, library.library_name)
-            logger.debug("Additional args to pass to %s: %s", library.library_name, additional_args)
-            library_results.append(process_library_documents(library, additional_args, settings.output))
+    libraries, failed_urls, input_count = preprocess_documents(
+        Path(settings.documents_file),
+        output_dir=settings.output,
+        page_uuids=settings.pages,
+        processes=settings.processes,
+        settings=settings,
+    )
+    if not input_count:
+        return 0
 
-    except ValueError as e:
-        logger.exception(e)
-        raise e
+    failed_documents: list[tuple[str, PageDownloadResult | None]] = [(url, None) for url in failed_urls]
+    for library in libraries.values():
+        additional_args = build_additional_args(settings, library.library_name)
+        logger.debug("Additional args to pass to %s: %s", library.library_name, additional_args)
+        failed_documents.extend(process_library_documents(library, additional_args, settings.output))
 
-    # Collect and display results
-    if all(library_results) and any(library_results):
-        logger.info("All documents processed successfully.")
-    else:
-        logger.warning("Some documents failed to process. Check logs for details.")
+    if failed_documents:
+        logger.warning("Some documents failed to process:")
+        for url, result in failed_documents:
+            if result is None:
+                logger.warning("  %s", url)
+            else:
+                logger.warning(
+                    "  %s: %d succeeded, %d failed, %d not attempted",
+                    url,
+                    result.succeeded,
+                    result.failed,
+                    result.unattempted,
+                )
+        return 1
+    logger.info("All documents processed successfully.")
+    return 0
 
 
 if __name__ == "__main__":
     try:
-        main()
+        sys.exit(main())
     except ConfigError as config_error:
         sys.exit(f"Configuration error: {config_error}")

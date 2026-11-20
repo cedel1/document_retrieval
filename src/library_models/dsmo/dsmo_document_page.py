@@ -67,5 +67,6 @@ class DSMODocumentPage(BaseDocumentPage):
                 dezoomify_path,
                 dezoomify_args or [],
                 allow_insecure,
+                document_url=self.page_url,
             )
         )

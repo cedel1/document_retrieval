@@ -22,8 +22,20 @@ from document_retrieval import (
     build_additional_args,
     main,
 )
+from src.helper_services.base_getter import CertificateValidationError
+from src.library_models.base.base_library import PageDownloadResult
 from src.settings.settings import ConfigError, Settings
-from .fixtures import mock_library, mock_document, temp_documents_file, main_env
+from .fixtures import mock_library, mock_document, temp_documents_file, main_env, run_cli
+
+
+class CertificateFailingLibrary:
+    """Importable worker fixture for multiprocessing certificate failures."""
+
+    library_name = "CertificateFailingLibrary"
+    page_detail_url = "https://example.com/"
+
+    def preprocess_document_from_url(self, document_url, **kwargs):
+        raise CertificateValidationError(f"Certificate validation failed for {document_url}")
 
 
 def test_get_document_urls_should_ignore_comments_and_whitespace(temp_documents_file):
@@ -123,7 +135,7 @@ def test_preprocess_documents_should_use_multiprocessing_pool(temp_documents_fil
 
             mock_pool_instance.apply_async.side_effect = mock_results
 
-            libraries = preprocess_documents(temp_documents_file, "output", None)
+            libraries, _, _ = preprocess_documents(temp_documents_file, "output", None)
 
             assert "MockLibrary" in libraries
             assert libraries["MockLibrary"] == mock_library
@@ -164,7 +176,7 @@ def test_preprocess_documents_should_handle_exceptions_gracefully(
                 mock_pool_instance.apply_async.side_effect = mock_results
 
                 # Should not raise an exception, but handle it gracefully
-                libraries = preprocess_documents(temp_documents_file, "output", None)
+                libraries, _, _ = preprocess_documents(temp_documents_file, "output", None)
 
                 # Library should still be created but document should not be appended
                 assert "MockLibrary" in libraries
@@ -209,68 +221,54 @@ def test_preprocess_documents_should_handle_library_failure_gracefully(temp_docu
             mock_pool_instance = MagicMock()
             mock_pool.return_value.__enter__.return_value = mock_pool_instance
 
-            libraries = preprocess_documents(temp_documents_file, "output", None)
+            libraries, _, _ = preprocess_documents(temp_documents_file, "output", None)
 
             assert libraries == {}
 
 
-def test_process_library_documents_should_return_true_on_success(mock_library, mock_document):
-    """Test that process_library_documents returns True when all documents succeed."""
+def test_process_library_documents_should_return_no_failures_on_success(mock_library, mock_document):
     mock_library.documents = [mock_document]
-    mock_library.process_document = Mock()
+    mock_library.process_document.return_value = PageDownloadResult(1, 0)
 
     result = process_library_documents(mock_library, {}, "output")
 
-    assert result is True
-    mock_library.process_document.assert_called_once_with(mock_document, {}, "output")
+    assert result == []
 
 
-def test_process_library_documents_should_return_false_on_document_failure(mock_library, mock_document):
-    """Test that process_library_documents returns False when a document fails."""
+def test_process_library_documents_should_report_document_exception(mock_library, mock_document):
     mock_library.documents = [mock_document]
     mock_library.process_document.side_effect = Exception("Processing error")
 
     result = process_library_documents(mock_library, {}, "output")
 
-    assert result is False
+    assert result == [(mock_document.source_url, None)]
 
 
-def test_process_library_documents_should_return_false_on_partial_failure(mock_library):
-    """Test that process_library_documents returns False when some documents fail."""
-    doc1 = Mock()
-    doc2 = Mock()
+def test_process_library_documents_should_continue_after_document_exception(mock_library):
+    doc1 = Mock(source_url="https://example.com/doc1")
+    doc2 = Mock(source_url="https://example.com/doc2")
     mock_library.documents = [doc1, doc2]
-
-    def process_side_effect(document, args, output_dir):
-        if document == doc2:
-            raise Exception("doc2 failed")
-
-    mock_library.process_document.side_effect = process_side_effect
+    mock_library.process_document.side_effect = [Exception("doc1 failed"), PageDownloadResult(1, 0)]
 
     result = process_library_documents(mock_library, {}, "output")
 
-    assert result is False
+    assert result == [(doc1.source_url, None)]
+    assert mock_library.process_document.call_count == 2
 
 
-def test_process_library_documents_should_return_true_for_empty_documents(mock_library):
-    """Test that process_library_documents returns True for empty library."""
+def test_process_library_documents_should_return_no_failures_for_empty_library(mock_library):
     mock_library.documents = []
 
-    result = process_library_documents(mock_library, {}, "output")
-
-    assert result is True
+    assert process_library_documents(mock_library, {}, "output") == []
 
 
 def test_process_library_documents_should_pass_additional_args(mock_library, mock_document):
-    """Test that process_library_documents passes additional args correctly."""
     mock_library.documents = [mock_document]
-    mock_library.process_document = Mock()
-
+    mock_library.process_document.return_value = PageDownloadResult(1, 0)
     additional_args = {"--pages": ["page1", "page2"], "dezoomify-path": "/custom/path"}
 
-    result = process_library_documents(mock_library, additional_args, "output")
+    process_library_documents(mock_library, additional_args, "output")
 
-    assert result is True
     mock_library.process_document.assert_called_once_with(mock_document, additional_args, "output")
 
 
@@ -480,3 +478,103 @@ def test_main_should_validate_certificates_by_default(main_env):
     main(["--config", str(config)])
 
     assert main_env.process.call_args.args[1]["allow-insecure"] is False
+
+
+@pytest.mark.parametrize("contents", ["", "\n# comment\n  \n"])
+def test_preprocess_documents_should_warn_when_file_has_no_urls(tmp_path, contents, caplog):
+    documents_file = tmp_path / "documents.txt"
+    documents_file.write_text(contents, encoding="utf-8")
+
+    with patch("document_retrieval.Pool") as pool:
+        result = preprocess_documents(documents_file)
+
+    assert result == ({}, [], 0)
+    assert "No document URLs" in caplog.text
+    pool.assert_not_called()
+
+
+def test_preprocess_documents_should_return_failed_library_urls(temp_documents_file):
+    with patch("document_retrieval.LibraryFactory.from_url", side_effect=ValueError("bad URL")), patch(
+        "document_retrieval.Pool"
+    ):
+        libraries, failed_urls, count = preprocess_documents(temp_documents_file)
+
+    assert libraries == {}
+    assert failed_urls == list(get_document_urls(temp_documents_file))
+    assert count == 4
+
+
+def test_preprocess_documents_should_preserve_certificate_failure_across_worker(tmp_path, caplog):
+    documents_file = tmp_path / "documents.txt"
+    documents_file.write_text("https://example.com/doc\n", encoding="utf-8")
+
+    with patch("document_retrieval.LibraryFactory.from_url", return_value=CertificateFailingLibrary()):
+        _, failed_urls, count = preprocess_documents(documents_file, processes=1)
+
+    assert failed_urls == ["https://example.com/doc"]
+    assert count == 1
+    assert "RemoteTraceback" not in caplog.text
+    assert "Traceback" not in caplog.text
+
+
+def test_process_library_documents_should_report_failed_page_counts(mock_library, mock_document):
+    mock_library.documents = [mock_document]
+    mock_library.process_document.return_value = PageDownloadResult(8, 1, 1)
+
+    result = process_library_documents(mock_library, {}, "output")
+
+    assert result == [(mock_document.source_url, PageDownloadResult(8, 1, 1))]
+
+
+def test_main_should_return_zero_when_all_documents_succeed(main_env):
+    config = main_env.write_config('documents_file = "docs.txt"\n')
+
+    assert main(["--config", str(config)]) == 0
+
+
+def test_main_should_return_zero_without_success_summary_for_empty_input(main_env, caplog):
+    config = main_env.write_config('documents_file = "docs.txt"\n')
+    main_env.preprocess.return_value = ({}, [], 0)
+
+    with caplog.at_level(logging.INFO):
+        result = main(["--config", str(config)])
+
+    assert result == 0
+    assert "All documents processed successfully" not in caplog.text
+
+
+def test_main_should_report_preprocessing_failure_even_when_other_documents_succeed(main_env, caplog):
+    config = main_env.write_config('documents_file = "docs.txt"\n')
+    libraries, _, _ = main_env.preprocess.return_value
+    main_env.preprocess.return_value = (libraries, ["https://example.com/failed"], 2)
+
+    result = main(["--config", str(config)])
+
+    assert result == 1
+    assert "https://example.com/failed" in caplog.text
+    assert "All documents processed successfully" not in caplog.text
+
+
+def test_main_should_report_page_failure_counts(main_env, caplog):
+    config = main_env.write_config('documents_file = "docs.txt"\n')
+    main_env.process.return_value = [("https://example.com/doc", PageDownloadResult(8, 1, 1))]
+
+    result = main(["--config", str(config)])
+
+    assert result == 1
+    assert "https://example.com/doc: 8 succeeded, 1 failed, 1 not attempted" in caplog.text
+
+
+def test_cli_should_exit_zero_for_empty_input(run_cli):
+    result = run_cli("# no URLs\n")
+
+    assert result.returncode == 0
+    assert "No document URLs" in result.stderr
+
+
+def test_cli_should_exit_one_when_document_preprocessing_fails(run_cli):
+    result = run_cli("https://example.com/not-supported\n")
+
+    assert result.returncode == 1
+    assert "https://example.com/not-supported" in result.stderr
+    assert "All documents processed successfully" not in result.stderr

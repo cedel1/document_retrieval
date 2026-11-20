@@ -1,10 +1,44 @@
 """Shared pytest fixtures for document_retrieval tests."""
 
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
+
+
+@pytest.fixture
+def run_cli(tmp_path):
+    """Run the document retrieval CLI with temporary input and configuration files."""
+    documents_file = tmp_path / "documents.txt"
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+    script = Path(__file__).resolve().parents[1] / "document_retrieval.py"
+
+    def run(contents):
+        documents_file.write_text(contents, encoding="utf-8")
+        return subprocess.run(
+            [
+                sys.executable,
+                str(script),
+                "--config",
+                str(config),
+                "--documents_file",
+                str(documents_file),
+                "--output",
+                str(tmp_path / "output"),
+                "--processes",
+                "1",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+
+    return run
 
 
 @pytest.fixture
@@ -58,7 +92,7 @@ def main_env(tmp_path):
 
     with (
         patch("document_retrieval.SCRIPT_DIR", tmp_path),
-        patch("document_retrieval.preprocess_documents", return_value={"lib": library}) as preprocess,
-        patch("document_retrieval.process_library_documents", return_value=True) as process,
+        patch("document_retrieval.preprocess_documents", return_value=({"lib": library}, [], 1)) as preprocess,
+        patch("document_retrieval.process_library_documents", return_value=[]) as process,
     ):
         yield SimpleNamespace(tmp_path=tmp_path, preprocess=preprocess, process=process, write_config=write_config)

@@ -43,6 +43,17 @@ If the binary is not in `PATH`, pass it explicitly with `--dezoomify-path`.
 ## Usage
 
 The script expects a text file with one document URL per line. Blank lines and lines starting with `#` are ignored.
+An input file without URLs produces a warning and exits successfully.
+
+Missing document metadata is treated as empty. Unexpected non-string REST metadata is reported, and other retrieval
+methods are tried where available.
+
+Certificate verification failures produce a warning for each failed request; `--verbose` also shows the diagnostic
+details. Other retrieval methods are still tried. Certificate validation is never disabled automatically.
+
+The final summary lists failed documents and page download counts. A document fails if any requested page fails, or if
+its properties file cannot be created. Existing document output directories are never overwritten. The command exits
+with status 1 if any document fails, or 0 when all documents succeed (or there are no URLs).
 
 ```bash
 python document_retrieval.py --documents_file documents.txt
