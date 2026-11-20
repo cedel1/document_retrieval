@@ -3,6 +3,7 @@
 import pytest
 
 from src.library_models.base.base_library import BaseLibrary
+from test.library_models.base.fixtures import print_mock
 
 
 @pytest.fixture
@@ -73,29 +74,20 @@ def test_append_preprocessed_document_should_add_to_documents_list(concrete_libr
 
 
 def test_process_document_should_call_create_properties_file_and_page_download(
-    monkeypatch, concrete_library, dummy_document
+    concrete_library, dummy_document, print_mock
 ):
     library = concrete_library("https://example.com/")
     document = dummy_document()
-    captured = {}
-
-    calls = []
-
-    def fake_print(*args, **kwargs):
-        calls.append(args)
-
-    monkeypatch.setattr("builtins.print", fake_print)
 
     library.process_document(document, {"dezoomify-path": "/tool", "dezoomify-args": ["--largest"]}, "/tmp/out")
 
     assert document.pages[0].called == [("/tool", ["--largest"], False)]
-    assert any("Processing document" in str(part) for call in calls for part in call)
+    assert any("Processing document" in str(part) for call in print_mock.call_args_list for part in call.args)
 
 
-def test_process_document_should_pass_allow_insecure_to_pages(monkeypatch, concrete_library, dummy_document):
+def test_process_document_should_pass_allow_insecure_to_pages(concrete_library, dummy_document, print_mock):
     library = concrete_library("https://example.com/")
     document = dummy_document()
-    monkeypatch.setattr("builtins.print", lambda *args, **kwargs: None)
 
     library.process_document(
         document, {"dezoomify-path": "/tool", "dezoomify-args": [], "allow-insecure": True}, "/tmp/out"

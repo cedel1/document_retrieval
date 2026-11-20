@@ -1,6 +1,7 @@
 """Tests for the abstract base getter class."""
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 import urllib3
@@ -75,10 +76,8 @@ def test_get_subtitle_should_raise_not_implemented_on_base_class():
         ({"allow_insecure": True}, [(urllib3.exceptions.InsecureRequestWarning,)]),
     ],
 )
-def test_init_should_suppress_urllib3_warning_only_when_allow_insecure(monkeypatch, instance_params, expected_calls):
-    calls = []
-    monkeypatch.setattr(urllib3, "disable_warnings", lambda *args: calls.append(args))
+def test_init_should_suppress_urllib3_warning_only_when_allow_insecure(instance_params, expected_calls):
+    with patch("urllib3.disable_warnings") as disable_warnings:
+        SimpleDomGetterMethod(instance_params)
 
-    SimpleDomGetterMethod(instance_params)
-
-    assert calls == expected_calls
+    assert [call.args for call in disable_warnings.call_args_list] == expected_calls

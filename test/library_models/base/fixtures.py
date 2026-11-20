@@ -1,5 +1,7 @@
 """Shared fixtures for library model base tests."""
 
+from unittest.mock import patch
+
 import pytest
 
 from src.library_models.base.base_document_page import BaseDocumentPage
@@ -19,3 +21,10 @@ def dummy_page_class():
             return True
 
     return DummyPage
+
+
+@pytest.fixture
+def print_mock():
+    """Fixture replacing ``builtins.print`` with a mock that keeps the test output clean."""
+    with patch("builtins.print") as mocked_print:
+        yield mocked_print
