@@ -48,8 +48,9 @@ An input file without URLs produces a warning and exits successfully.
 Missing document metadata is treated as empty. Unexpected non-string REST metadata is reported, and other retrieval
 methods are tried where available.
 
-Certificate verification failures produce a warning for each failed request; `--verbose` also shows the diagnostic
-details. Other retrieval methods are still tried. Certificate validation is never disabled automatically.
+Recognized certificate verification failures produce a warning for each failed request; `--verbose` also shows the
+diagnostic details. Other retrieval methods are still tried. Certificate validation is never disabled automatically.
+See [Known issues](#known-issues) for a limitation affecting `dezoomify-rs` on macOS and Windows.
 
 The final summary lists failed documents and page download counts. A document fails if any requested page fails, or if
 its properties file cannot be created. Existing document output directories are never overwritten. The command exits
@@ -252,3 +253,10 @@ This convention applies to all new tests and ensures consistency across the test
 - **Multiprocessing**: Currently, document preprocessing uses multiprocessing with fixed a pool size of 2 processes for
   parallel processing
 - **Memory usage**: Each document is pre-processed independently to minimize wait time for Selenium and page download
+
+## Known issues
+
+On macOS and Windows, certificate verification failures reported by `dezoomify-rs` may not be recognized. In that case,
+the full error output is shown instead of a concise warning, and it may not suggest `--allow-insecure`. Certificate
+validation remains enabled; contact the server owner to fix the certificate, or use `--allow-insecure` only if you trust
+the server and accept the [security risk](#arguments).
