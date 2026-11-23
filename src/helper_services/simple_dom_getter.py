@@ -158,9 +158,7 @@ class SimpleDomGetterMethod(BaseGetterMethod):
         if not soup:
             return page_uuids
 
-        all_matching_divs = soup.find_all(**search_pattern)
-
-        for div in all_matching_divs:
+        for div in soup.find_all(**search_pattern):
             page_uuids = self._get_uuid_from_match(page_uuids, div["id"], search_pattern["id"])
 
         return page_uuids

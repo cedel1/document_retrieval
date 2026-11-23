@@ -28,8 +28,9 @@ class DomSeleniumGetterMethod(SimpleDomGetterMethod):
         soup = self.document_page_source
         if soup is None:
             try:
-                response = self._try_selenium_dom_request(document_url)
-                soup = self.document_page_source = BeautifulSoup(response, "html.parser")
+                soup = self.document_page_source = BeautifulSoup(
+                    self._try_selenium_dom_request(document_url), "html.parser"
+                )
             except HTTPError as e:
                 logger.debug(MSG_SELENIUM_REQUEST_FAILED, e)
 

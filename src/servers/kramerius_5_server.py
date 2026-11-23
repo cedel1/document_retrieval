@@ -205,9 +205,10 @@ class Kramerius5ServerType(BaseServerType):
                     getter_name = self.get_getter_name()
                     if getter_name is None:
                         raise ValueError("Active getter has no name")
-                    getter_method_parameters = self.document_info_methods[getter_name][getter_method_parameters_key]
                     return self._get_document_partial_information(
-                        document_url, getter_method_name, getter_method_parameters
+                        document_url,
+                        getter_method_name,
+                        self.document_info_methods[getter_name][getter_method_parameters_key],  # method parameters
                     )
                 except ValueError as error:
                     failures = self._record_getter_failure(error, failures)
@@ -231,8 +232,7 @@ class Kramerius5ServerType(BaseServerType):
         failures: tuple[CertificateValidationError | None, bool],
     ) -> str | list[str]:
         """Try configured getters in order, preserving failures from the active getter."""
-        methods_list = list(self.document_info_methods.keys())
-        for method_name in methods_list:
+        for method_name, method in self.document_info_methods.items():
             try:
                 getter_class_name = self._get_class_name(method_name)
                 getter_class = self._get_class_from_name(getter_class_name)
@@ -240,9 +240,10 @@ class Kramerius5ServerType(BaseServerType):
                     continue
 
                 self.active_getter_instance = getter_class(self._getter_params(method_name))
-                getter_method_parameters = self.document_info_methods[method_name][getter_method_parameters_key]
                 if result := self._get_document_partial_information(
-                    document_url, getter_method_name, getter_method_parameters
+                    document_url,
+                    getter_method_name,
+                    method[getter_method_parameters_key],  # method parameters
                 ):
                     return result
             except ValueError as error:

@@ -69,14 +69,16 @@ def get_library_document(document_url, output_dir, page_uuids, library_class, al
     """
     try:
         library = library_class()
-        document = library.preprocess_document_from_url(
-            document_url,
-            page_detail_url=library.page_detail_url,
-            output_dir=output_dir,
-            page_uuids=page_uuids,
-            allow_insecure=allow_insecure,
+        return (
+            library.preprocess_document_from_url(
+                document_url,
+                page_detail_url=library.page_detail_url,
+                output_dir=output_dir,
+                page_uuids=page_uuids,
+                allow_insecure=allow_insecure,
+            ),
+            str(library),
         )
-        return document, str(library)
     except CertificateValidationError:
         raise
     except ValueError as e:
