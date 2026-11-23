@@ -75,8 +75,7 @@ class RestApiGetterMethod(BaseGetterMethod):
             str: The extracted document identifier, or None if not found.
         """
         path_match = re.search(self.identifier_pattern, urlparse(document_url).path)
-        document_uuid = path_match.group(1) if path_match else None
-        return document_uuid
+        return path_match.group(1) if path_match else None
 
     def _get_full_api_url(self, url_pattern: str, replacement_strings: list[str]) -> str:
         """
@@ -176,8 +175,7 @@ class RestApiGetterMethod(BaseGetterMethod):
                 if not isinstance(page_id, str):
                     raise ValueError(f"Invalid REST page identifier for {document_url}: expected a string")
                 page_objects[self._recursive_get(page_object, *search_parameter["page_number"])] = page_id
-            page_uuids = [page_objects[key] for key in sorted(page_objects)]
-            return page_uuids
+            return [page_objects[key] for key in sorted(page_objects)]
 
         except KeyError as e:
             logger.exception("Error fetching pages from REST API: %s", e)

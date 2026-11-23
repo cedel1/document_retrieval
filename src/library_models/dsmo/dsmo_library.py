@@ -66,7 +66,7 @@ class DSMOLibrary(BaseLibrary):
         with DSMOLibrary.server_type(  # NOSONAR  # creates instance of BaseServerType subclass
             allow_insecure=allow_insecure
         ) as server_instance:
-            document = DSMODocumentFactory.from_url(
+            return DSMODocumentFactory.from_url(
                 library=self,
                 server_instance=server_instance,
                 source_url=document_url,
@@ -74,4 +74,3 @@ class DSMOLibrary(BaseLibrary):
                 output_dir=output_path,
                 page_uuids=page_uuids,
             )
-            return document
