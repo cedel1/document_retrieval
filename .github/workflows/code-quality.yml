@@ -1,6 +1,12 @@
 name: Code Quality
 
-on: [ push ]
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
     build:
@@ -17,19 +23,19 @@ jobs:
             -   name: Install uv
                 uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
             -   name: Install dependencies
-                run: uv sync --frozen
+                run: uv sync --frozen --no-build
             -   name: Check code formatting with Black
                 run: |
-                    uv run black --check --config pyproject.toml $(git ls-files '*.py')
+                    uv run --frozen --no-build black --check --config pyproject.toml $(git ls-files '*.py')
             -   name: Analysing the code with pylint
                 run: |
-                    uv run pylint --rcfile=pyproject.toml $(git ls-files '*.py')
+                    uv run --frozen --no-build pylint --rcfile=pyproject.toml $(git ls-files '*.py')
             -   name: Running tests with pytest
                 run: |
-                    uv run pytest --config-file=pyproject.toml
+                    uv run --frozen --no-build pytest --config-file=pyproject.toml
             -   name: Run tests with coverage
                 run: |
-                    uv run pytest --cov --cov-report=term --cov-report=xml --cov-fail-under=90
+                    uv run --frozen --no-build pytest --cov --cov-report=term --cov-report=xml --cov-fail-under=90
             -   name: Upload coverage report
                 if: matrix.python-version == '3.15'
                 uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
