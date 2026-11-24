@@ -30,4 +30,18 @@ jobs:
                     pytest --config-file=pyproject.toml
             -   name: Run tests with coverage
                 run: |
-                    pytest --cov=src --cov=document_retrieval --cov-report=term --cov-fail-under=90
+                    pytest --cov=src --cov=document_retrieval --cov-report=term --cov-report=xml --cov-fail-under=90
+            -   name: Upload coverage report
+                if: matrix.python-version == '3.15'
+                uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+                with:
+                  name: coverage-xml
+                  path: coverage.xml
+
+    sonar:
+        needs: build
+        if: github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        permissions:
+          contents: read
+        uses: ./.github/workflows/sonar-qube.yml
+        secrets: inherit
