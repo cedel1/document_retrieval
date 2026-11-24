@@ -134,8 +134,10 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
             PageDownloadResult: Counts of successful, failed, and unattempted page downloads.
         """
         # Placeholder for actual processing logic
-        print(f"Processing document {document} from library {self} with args {additional_args} into {output_dir}")
-        print(f"additional_args: {additional_args}")
+        print(
+            f"Processing document {document} from library {self.library_name} with "
+            f"args {additional_args} into {output_dir}"
+        )
         allow_insecure = additional_args.get("allow-insecure", False)
         document.create_properties_file(
             dezoomify_path=additional_args["dezoomify-path"],
