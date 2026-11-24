@@ -4,8 +4,9 @@ line-length = 120
 [tool.coverage.run]
 branch = true
 relative_files = true
-source = ["src", "document_retrieval.py"]
+source = ["."]
 omit = [
+    "test/*",
     "*/__pycache__/*",
     "*/.venv/*",
     "*/site-packages/*",
