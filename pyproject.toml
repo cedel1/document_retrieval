@@ -3,6 +3,7 @@ line-length = 120
 
 [tool.coverage.run]
 branch = true
+relative_files = true
 source = ["src", "document_retrieval.py"]
 omit = [
     "*/__pycache__/*",
