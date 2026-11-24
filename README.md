@@ -54,8 +54,10 @@ The final summary lists failed documents and page download counts. A document fa
 its properties file cannot be created. Existing document output directories are never overwritten. The command exits
 with status 1 if any document fails, or 0 when all documents succeed (or there are no URLs).
 
+Commands run through `uv run`, which uses the project's `.venv` without manual activation.
+
 ```bash
-python document_retrieval.py --documents_file documents.txt
+uv run python document_retrieval.py --documents_file documents.txt
 ```
 
 ### Arguments
@@ -127,31 +129,31 @@ https://www.knihovna.cz/kod_knihovny/view/uuid:a6729f13-f527-4918-a92e-83c1f5fce
 ### Basic batch download
 
 ```bash
-python document_retrieval.py --documents_file documents.txt
+uv run python document_retrieval.py --documents_file documents.txt
 ```
 
 ### Custom output directory
 
 ```bash
-python document_retrieval.py --documents_file documents.txt --output my_images
+uv run python document_retrieval.py --documents_file documents.txt --output my_images
 ```
 
 ### Custom dezoomify-rs path
 
 ```bash
-python document_retrieval.py --documents_file documents.txt --dezoomify-path /usr/local/bin/dezoomify-rs
+uv run python document_retrieval.py --documents_file documents.txt --dezoomify-path /usr/local/bin/dezoomify-rs
 ```
 
 ### Pass additional dezoomify-rs options
 
 ```bash
-python document_retrieval.py --documents_file documents.txt --dezoomify-args --largest
+uv run python document_retrieval.py --documents_file documents.txt --dezoomify-args --largest
 ```
 
 ### Full command with page filtering and custom options
 
 ```bash
-python document_retrieval.py \
+uv run python document_retrieval.py \
   --documents_file documents.txt \
   --output my_images \
   --dezoomify-path /usr/local/bin/dezoomify-rs \
@@ -161,7 +163,7 @@ python document_retrieval.py \
 ### Download specific pages only
 
 ```bash
-python document_retrieval.py \
+uv run python document_retrieval.py \
   --documents_file documents.txt \
   --pages uuid:11111111-1111-1111-1111-111111111111 uuid:22222222-2222-2222-2222-222222222222
 ```
