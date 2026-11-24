@@ -232,6 +232,14 @@ def test_load_config_should_raise_for_malformed_toml(write_config, known_librari
         load_config(config_path, known_libraries)
 
 
+def test_load_config_should_raise_for_non_toml_extension(write_config, known_libraries):
+    """Tests that a file without a .toml extension is rejected."""
+    config_path = write_config("", name="secrets.txt")
+
+    with pytest.raises(ConfigError, match=r"\.toml extension"):
+        load_config(config_path, known_libraries)
+
+
 def test_load_config_should_raise_for_non_utf8_file(tmp_path, known_libraries):
     """Tests that a file in a non-UTF-8 encoding is reported as a ConfigError."""
     config_path = tmp_path / "windows.toml"

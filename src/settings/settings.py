@@ -192,13 +192,16 @@ def load_config(config_path: Path, known_libraries: Iterable[str]) -> dict[str, 
         ConfigError: If the file cannot be read, is not valid UTF-8 or TOML, contains unknown keys or library
             tables, or holds invalid values.
     """
+    resolved_path = config_path.resolve()
     try:
-        with open(config_path, "rb") as config_file:
+        if resolved_path.suffix.lower() != ".toml":
+            raise ConfigError(f"Config file must have a .toml extension: {config_path}")
+        with resolved_path.open("rb") as config_file:
             raw = tomllib.load(config_file)
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
         raise ConfigError(f"Cannot read config file {config_path}: {e}") from e
 
-    base_dir = config_path.resolve().parent
+    base_dir = resolved_path.parent
     validators = _top_level_validators(base_dir)
     config: dict[str, Any] = {}
 
