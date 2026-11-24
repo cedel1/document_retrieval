@@ -14,21 +14,22 @@ jobs:
                 uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
                 with:
                     python-version: ${{ matrix.python-version }}
+            -   name: Install uv
+                uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
             -   name: Install dependencies
-                run: |
-                    pip install --only-binary :all: -r dev-requirements.txt
+                run: uv sync --frozen
             -   name: Check code formatting with Black
                 run: |
-                    black --check --config pyproject.toml $(git ls-files '*.py')
+                    uv run black --check --config pyproject.toml $(git ls-files '*.py')
             -   name: Analysing the code with pylint
                 run: |
-                    pylint --rcfile=pyproject.toml $(git ls-files '*.py')
+                    uv run pylint --rcfile=pyproject.toml $(git ls-files '*.py')
             -   name: Running tests with pytest
                 run: |
-                    pytest --config-file=pyproject.toml
+                    uv run pytest --config-file=pyproject.toml
             -   name: Run tests with coverage
                 run: |
-                    pytest --cov --cov-report=term --cov-report=xml --cov-fail-under=90
+                    uv run pytest --cov --cov-report=term --cov-report=xml --cov-fail-under=90
             -   name: Upload coverage report
                 if: matrix.python-version == '3.15'
                 uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -1,8 +1,0 @@
-# Development dependencies (includes runtime dependencies)
--r requirements.txt
-
-black==26.10.1
-coverage==7.17.5
-pylint==4.1.4
-pytest==9.2.0
-pytest-cov==7.1.0

@@ -42,9 +42,10 @@ def test_check_dezoomify_rs_should_return_false_on_subprocess_error(subprocess_r
 
 
 def test_random_delay_should_use_uniform_delay_and_sleep():
-    with patch("src.services.download_service.random.uniform", return_value=3.5) as uniform, patch(
-        "src.services.download_service.time.sleep"
-    ) as sleep:
+    with (
+        patch("src.services.download_service.random.uniform", return_value=3.5) as uniform,
+        patch("src.services.download_service.time.sleep") as sleep,
+    ):
         DownloadService.random_delay(1.0, 10.0)
 
     uniform.assert_called_once_with(1.0, 10.0)
