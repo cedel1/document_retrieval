@@ -22,9 +22,7 @@ resolves the right library backend, discovers page UUIDs, and downloads each pag
 ### Python dependencies
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
 ### dezoomify-rs
@@ -175,7 +173,7 @@ python document_retrieval.py \
 ├── document_retrieval.py          # CLI entry point
 ├── documents.txt                  # example input file
 ├── document_retrieval.example.toml # example config file
-├── requirements.txt               # Python dependencies
+├── uv.lock                        # locked Python dependencies
 ├── pyproject.toml                 # project configuration
 ├── src/
 │   ├── helper_services/           # DOM / API fetch helpers

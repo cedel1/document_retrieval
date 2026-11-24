@@ -494,8 +494,9 @@ def test_preprocess_documents_should_warn_when_file_has_no_urls(tmp_path, conten
 
 
 def test_preprocess_documents_should_return_failed_library_urls(temp_documents_file):
-    with patch("document_retrieval.LibraryFactory.from_url", side_effect=ValueError("bad URL")), patch(
-        "document_retrieval.Pool"
+    with (
+        patch("document_retrieval.LibraryFactory.from_url", side_effect=ValueError("bad URL")),
+        patch("document_retrieval.Pool"),
     ):
         libraries, failed_urls, count = preprocess_documents(temp_documents_file)
 

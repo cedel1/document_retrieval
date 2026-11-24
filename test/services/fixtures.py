@@ -69,8 +69,11 @@ def subprocess_run():
 def dezoomify_available():
     """Fixture making dezoomify-rs appear installed; yields a namespace recording the skipped random delays."""
     delays = SimpleNamespace(calls=[])
-    with patch.object(DownloadService, "check_dezoomify_rs", return_value=True), patch.object(
-        DownloadService, "random_delay", side_effect=lambda *args, **kwargs: delays.calls.append((args, kwargs))
+    with (
+        patch.object(DownloadService, "check_dezoomify_rs", return_value=True),
+        patch.object(
+            DownloadService, "random_delay", side_effect=lambda *args, **kwargs: delays.calls.append((args, kwargs))
+        ),
     ):
         yield delays
 
