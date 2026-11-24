@@ -26,10 +26,3 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@70bad232163b09d998ea0707ee80c0ec80798c16 # v8.5.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=cedel1
-            -Dsonar.projectKey=cedel1_document_retrieval
-            -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.sources=src,document_retrieval.py
-            -Dsonar.tests=test
