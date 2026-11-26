@@ -139,6 +139,7 @@ class BaseLibrary(ABC, Singleton, metaclass=BaseMetaClass):
             f"args {additional_args} into {output_dir}"
         )
         allow_insecure = additional_args.get("allow-insecure", False)
+        document.images_subfolder = additional_args.get("images-subfolder")
         document.create_properties_file(
             dezoomify_path=additional_args["dezoomify-path"],
             dezoomify_args=additional_args["dezoomify-args"],

@@ -3,17 +3,15 @@
 from pathlib import Path
 
 from src.library_models.base.base_document_page import BaseDocumentPage
-from test.library_models.base.fixtures import dummy_page_class
+from test.library_models.base.fixtures import dummy_page_class, sample_page
 
 
-def test_output_base_should_include_full_uuid_and_page_index(dummy_page_class):
-    page = dummy_page_class("abcd1234", "https://example.com/page", "https://example.com/detail", 4, "tmp")
-
-    assert page.identifier == "abcd1234"
-    assert page.page_url == "https://example.com/page"
-    assert page.page_detail_url == "https://example.com/detail"
-    assert page.output_dir == Path("tmp")
-    assert page.output_base == Path("tmp/page_004_abcd1234")
+def test_output_base_should_include_full_uuid_and_page_index(sample_page):
+    assert sample_page.identifier == "abcd1234"
+    assert sample_page.page_url == "https://example.com/page"
+    assert sample_page.page_detail_url == "https://example.com/detail"
+    assert sample_page.output_dir == Path("tmp")
+    assert sample_page.output_base == Path("tmp/page_004_abcd1234")
 
 
 def test_output_base_should_truncate_filename_to_64_chars(dummy_page_class):
@@ -55,3 +53,13 @@ def test_get_page_download_url_should_substitute_page_uuid_in_template(dummy_pag
     page = dummy_page_class("abcd1234", "https://example.com/page", "https://example.com/detail", 1)
 
     assert page.get_page_download_url("abcd1234") == "https://example.com/download/abcd1234.xml"
+
+
+def test_output_base_should_not_include_subfolder_by_default(sample_page):
+    assert sample_page.images_subfolder is None
+
+
+def test_output_base_should_include_images_subfolder_when_set(sample_page):
+    sample_page.images_subfolder = "images"
+
+    assert sample_page.output_base == Path("tmp/images/page_004_abcd1234")

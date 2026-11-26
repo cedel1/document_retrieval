@@ -1,19 +1,17 @@
 """Tests for BaseDocument behavior."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from src.library_models.base.base_document import BaseDocument
-from test.library_models.base.fixtures import dummy_page_class
+from test.library_models.base.fixtures import doc_dir, document, dummy_page_class, first_page, second_page
 
 
-def test_init_should_set_pages_and_output_directory(dummy_page_class):
-    page_one = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, "tmp")
-    page_two = dummy_page_class("page-2", "https://example.com/page-2", "https://example.com/detail", 2, "tmp")
-
+def test_init_should_set_pages_and_output_directory(first_page, second_page):
     document = BaseDocument(
-        "doc-123", source_url="https://example.com/doc", output_dir="tmp", pages=[page_one, page_two]
+        "doc-123", source_url="https://example.com/doc", output_dir="tmp", pages=[first_page, second_page]
     )
 
     assert document.identifier == "doc-123"
@@ -21,23 +19,18 @@ def test_init_should_set_pages_and_output_directory(dummy_page_class):
     assert document.output_dir == Path("tmp")
     assert document.page_uuids == ["page-1", "page-2"]
     assert document.page_count == 2
-    assert page_one.output_dir == document.output_dir
+    assert first_page.output_dir == document.output_dir
 
 
-def test_add_page_should_update_directory_and_properties_path(tmp_path, dummy_page_class):
-    page = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(tmp_path))
-    document = BaseDocument("doc-123", output_dir=str(tmp_path / "doc-123"))
+def test_add_page_should_update_directory_and_properties_path(document, doc_dir, first_page):
+    document.add_page(first_page)
 
-    document.add_page(page)
-
-    assert document.properties_path == tmp_path / "doc-123" / "properties.txt"
-    assert page.output_dir == document.output_dir
+    assert document.properties_path == doc_dir / "properties.txt"
+    assert first_page.output_dir == document.output_dir
 
 
-def test_create_properties_file_should_write_expected_content(tmp_path, dummy_page_class):
-    doc_dir = tmp_path / "doc-123"
-    page = dummy_page_class("page-1", "https://example.com/page-1", "https://example.com/detail", 1, str(doc_dir))
-    document = BaseDocument("doc-123", output_dir=str(doc_dir), pages=[page])
+def test_create_properties_file_should_write_expected_content(document, doc_dir, first_page):
+    document.add_page(first_page)
 
     document.create_properties_file(
         dezoomify_path="/tool/dezoomify-rs", dezoomify_args=["--largest", "--max-width", "4000"]
@@ -52,12 +45,7 @@ def test_create_properties_file_should_write_expected_content(tmp_path, dummy_pa
 
 
 @pytest.mark.parametrize("allow_insecure, expected", [(True, "true"), (False, "false")])
-def test_create_properties_file_should_record_allow_insecure_separately(
-    tmp_path, dummy_page_class, allow_insecure, expected
-):
-    doc_dir = tmp_path / "doc-123"
-    document = BaseDocument("doc-123", output_dir=str(doc_dir), pages=[])
-
+def test_create_properties_file_should_record_allow_insecure_separately(document, doc_dir, allow_insecure, expected):
     document.create_properties_file(dezoomify_path="/tool", dezoomify_args=["--largest"], allow_insecure=allow_insecure)
 
     content = (doc_dir / "properties.txt").read_text(encoding="utf-8")
@@ -65,14 +53,50 @@ def test_create_properties_file_should_record_allow_insecure_separately(
     assert "Dezoomify-rs args: --largest\n" in content
 
 
-def test_create_properties_file_should_preserve_existing_directory(tmp_path):
-    doc_dir = tmp_path / "doc-123"
+def test_create_properties_file_should_preserve_existing_directory(document, doc_dir):
     doc_dir.mkdir()
     properties = doc_dir / "properties.txt"
     properties.write_text("existing", encoding="utf-8")
-    document = BaseDocument("doc-123", output_dir=str(doc_dir))
-
     with pytest.raises(FileExistsError):
         document.create_properties_file()
 
     assert properties.read_text(encoding="utf-8") == "existing"
+
+
+def test_create_properties_file_should_always_write_images_subfolder_line(document, doc_dir):
+    document.create_properties_file()
+
+    assert "Images subfolder: \n" in (doc_dir / "properties.txt").read_text(encoding="utf-8")
+
+
+def test_create_properties_file_should_not_create_subfolder_when_not_set(document, doc_dir):
+    document.create_properties_file()
+
+    assert [path.name for path in doc_dir.iterdir()] == ["properties.txt"]
+
+
+def test_create_properties_file_should_create_subfolder_and_keep_properties_in_document_folder(document, doc_dir):
+    document.images_subfolder = "images"
+
+    document.create_properties_file()
+
+    assert (doc_dir / "images").is_dir()
+    assert "Images subfolder: images\n" in (doc_dir / "properties.txt").read_text(encoding="utf-8")
+
+
+def test_create_properties_file_should_raise_when_subfolder_exists(document, doc_dir):
+    document.images_subfolder = "images"
+
+    with patch.object(Path, "mkdir", side_effect=[None, FileExistsError("images")]):
+        with pytest.raises(FileExistsError):
+            document.create_properties_file()
+
+
+def test_images_subfolder_should_apply_to_existing_and_added_pages(document, first_page, second_page):
+    document.add_page(first_page)
+
+    document.images_subfolder = "images"
+    document.add_page(second_page)
+
+    assert first_page.images_subfolder == "images"
+    assert second_page.images_subfolder == "images"

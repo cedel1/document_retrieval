@@ -73,6 +73,11 @@ uv run python document_retrieval.py --documents_file documents.txt
   certificates are validated). An explicit value overrides the config file, including library tables. When validation
   is disabled, `--accept-invalid-certs` is also passed to `dezoomify-rs`. **Security note:** with validation disabled
   the connection can be intercepted or spoofed; use it only for sites you trust.
+- `--images-subfolder`: Name of a subfolder inside each document folder into which the page images are downloaded;
+  `properties.txt` stays in the document folder. It must be a single folder name valid on all platforms (no path
+  separators, no reserved names like `CON` or `properties.txt`, no trailing dots or spaces, no characters like `:` or
+  `?`). Without it, images are placed directly in the document folder. The download fails if the subfolder already
+  exists. Also settable per library in the config file.
 - `--dezoomify-path`: Path to the `dezoomify-rs` executable (default: `dezoomify-rs`)
 - `--dezoomify-args`: Additional arguments to pass through to `dezoomify-rs`; pass them as separate CLI values
 - `--pages`: Optional list of page UUIDs to download (overrides automatic page discovery)
@@ -105,7 +110,8 @@ there are no per-library command-line options. Boolean options come in pairs (`-
 command line can switch a setting both on and off; when neither is given, the config value (or the default) applies.
 
 **Keys**: top-level `documents_file`, `output`, `processes`, `verbose`, `pages`, `dezoomify_path`,
-`dezoomify_args`, `allow_insecure`; per-library tables accept `dezoomify_args` and `allow_insecure`.
+`dezoomify_args`, `allow_insecure`, `images_subfolder`; per-library tables accept `dezoomify_args`,
+`allow_insecure` and `images_subfolder`.
 
 **Validation** is strict: unknown keys, unknown library tables, unknown keys inside a library table and invalid
 values or types (checked with the same rules as the command-line options) stop the program with an error.

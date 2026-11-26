@@ -39,6 +39,7 @@ def cli_args():
             "dezoomify_path": None,
             "dezoomify_args": None,
             "allow_insecure": None,
+            "images_subfolder": None,
         }
         defaults.update(values)
         return Namespace(**defaults)

@@ -46,6 +46,7 @@ def dummy_document(dummy_page):
         def __init__(self):
             self.source_url = "https://example.com/doc"
             self.pages = [dummy_page()]
+            self.images_subfolder = None
 
         def create_properties_file(self, dezoomify_path, dezoomify_args, allow_insecure=False):
             return {
@@ -55,6 +56,12 @@ def dummy_document(dummy_page):
             }
 
     return DummyDocument
+
+
+@pytest.fixture
+def concrete_library_with_dummy_document(concrete_library, dummy_document):
+    """Fixture providing a ``(library, document)`` pair of a concrete library and a dummy document."""
+    return concrete_library("https://example.com/"), dummy_document()
 
 
 def test_library_url_should_resolve_and_check_document_membership(concrete_library):
@@ -77,10 +84,9 @@ def test_append_preprocessed_document_should_add_to_documents_list(concrete_libr
 
 
 def test_process_document_should_call_create_properties_file_and_page_download(
-    concrete_library, dummy_document, print_mock
+    concrete_library_with_dummy_document, print_mock
 ):
-    library = concrete_library("https://example.com/")
-    document = dummy_document()
+    library, document = concrete_library_with_dummy_document
 
     library.process_document(document, {"dezoomify-path": "/tool", "dezoomify-args": ["--largest"]}, "/tmp/out")
 
@@ -88,9 +94,8 @@ def test_process_document_should_call_create_properties_file_and_page_download(
     assert any("Processing document" in str(part) for call in print_mock.call_args_list for part in call.args)
 
 
-def test_process_document_should_pass_allow_insecure_to_pages(concrete_library, dummy_document, print_mock):
-    library = concrete_library("https://example.com/")
-    document = dummy_document()
+def test_process_document_should_pass_allow_insecure_to_pages(concrete_library_with_dummy_document, print_mock):
+    library, document = concrete_library_with_dummy_document
 
     library.process_document(
         document, {"dezoomify-path": "/tool", "dezoomify-args": [], "allow-insecure": True}, "/tmp/out"
@@ -111,9 +116,8 @@ def test_init_should_set_empty_library_url_for_unmatched_url(concrete_library):
     assert library.library_url == ""
 
 
-def test_process_document_should_continue_after_failed_page(concrete_library, dummy_document):
-    library = concrete_library("https://example.com/")
-    document = dummy_document()
+def test_process_document_should_continue_after_failed_page(concrete_library_with_dummy_document):
+    library, document = concrete_library_with_dummy_document
     document.pages = [Mock(identifier="p1"), Mock(identifier="p2"), Mock(identifier="p3")]
     document.pages[0].download.return_value = True
     document.pages[1].download.return_value = False
@@ -125,9 +129,8 @@ def test_process_document_should_continue_after_failed_page(concrete_library, du
     document.pages[2].download.assert_called_once()
 
 
-def test_process_document_should_stop_after_unexpected_page_exception(concrete_library, dummy_document, caplog):
-    library = concrete_library("https://example.com/")
-    document = dummy_document()
+def test_process_document_should_stop_after_unexpected_page_exception(concrete_library_with_dummy_document, caplog):
+    library, document = concrete_library_with_dummy_document
     document.pages = [Mock(identifier="p1"), Mock(identifier="p2"), Mock(identifier="p3")]
     document.pages[0].download.return_value = True
     document.pages[1].download.side_effect = RuntimeError("unexpected")
@@ -139,13 +142,38 @@ def test_process_document_should_stop_after_unexpected_page_exception(concrete_l
     assert "Traceback" in caplog.text
 
 
-def test_process_document_should_not_download_pages_when_properties_fail(concrete_library, dummy_document):
-    library = concrete_library("https://example.com/")
-    document = dummy_document()
+def test_process_document_should_not_download_pages_when_properties_fail(concrete_library_with_dummy_document):
+    library, document = concrete_library_with_dummy_document
     document.create_properties_file = Mock(side_effect=OSError("cannot write"))
     document.pages = [Mock(identifier="p1")]
 
     with pytest.raises(OSError, match="cannot write"):
         library.process_document(document, {"dezoomify-path": "/tool", "dezoomify-args": []}, "out")
+
+    document.pages[0].download.assert_not_called()
+
+
+@pytest.mark.parametrize("value, expected", [("images", "images"), (None, None)])
+def test_process_document_should_set_images_subfolder_on_document(
+    concrete_library_with_dummy_document, print_mock, value, expected
+):
+    library, document = concrete_library_with_dummy_document
+
+    library.process_document(
+        document, {"dezoomify-path": "/tool", "dezoomify-args": [], "images-subfolder": value}, "/tmp/out"
+    )
+
+    assert document.images_subfolder == expected
+
+
+def test_process_document_should_not_download_pages_when_subfolder_exists(concrete_library_with_dummy_document):
+    library, document = concrete_library_with_dummy_document
+    document.create_properties_file = Mock(side_effect=FileExistsError("images"))
+    document.pages = [Mock(identifier="p1")]
+
+    with pytest.raises(FileExistsError):
+        library.process_document(
+            document, {"dezoomify-path": "/tool", "dezoomify-args": [], "images-subfolder": "images"}, "out"
+        )
 
     document.pages[0].download.assert_not_called()

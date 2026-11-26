@@ -12,6 +12,8 @@ from src.library_models.base.base_document_page import BaseDocumentPage
 
 logger = logging.getLogger(__name__)
 
+PROPERTIES_FILE_NAME = "properties.txt"
+
 
 # pylint: disable-next=too-many-instance-attributes
 class BaseDocument(ABC):
@@ -52,10 +54,27 @@ class BaseDocument(ABC):
         self.part_subtitle = part_subtitle
         self.output_dir = Path(output_dir)
         self.pages: List[BaseDocumentPage] = []
+        self._images_subfolder: Optional[str] = None
 
         if pages:
             for page in pages:
                 self.add_page(page)
+
+    @property
+    def images_subfolder(self) -> Optional[str]:
+        """Return the name of the subfolder (inside the document folder) that receives the page images.
+
+        Returns:
+            Optional[str]: The subfolder name, or ``None`` when images are stored directly in the document folder.
+        """
+        return self._images_subfolder
+
+    @images_subfolder.setter
+    def images_subfolder(self, value: Optional[str]) -> None:
+        """Set the images subfolder and apply it to all attached pages."""
+        self._images_subfolder = value
+        for page in self.pages:
+            page.images_subfolder = value
 
     @property
     def page_uuids(self) -> List[str]:
@@ -92,6 +111,7 @@ class BaseDocument(ABC):
         """
         if page.output_dir != self.output_dir:
             page.output_dir = self.output_dir
+        page.images_subfolder = self.images_subfolder
         self.pages.append(page)
 
     @property
@@ -104,7 +124,7 @@ class BaseDocument(ABC):
         Returns:
             Path: The destination path for the document metadata file.
         """
-        return self.output_dir / "properties.txt"
+        return self.output_dir / PROPERTIES_FILE_NAME
 
     def create_properties_file(
         self,
@@ -124,10 +144,13 @@ class BaseDocument(ABC):
             allow_insecure: Whether certificate validation is disabled; recorded separately from the arguments.
 
         Returns:
-            None: The metadata file is written to the document's output directory.
+            None: The metadata file is written to the document's output directory; when ``images_subfolder`` is set,
+                the subfolder is created too and a ``FileExistsError`` is raised if it already exists.
         """
         try:
             self.output_dir.mkdir(parents=True, exist_ok=False)
+            if self.images_subfolder:
+                (self.output_dir / self.images_subfolder).mkdir(exist_ok=False)
             with self.properties_path.open("w", encoding="utf-8") as properties_file:
                 properties_file.write(f"Source URL: {self.source_url}\n")
                 properties_file.write(f"Document_uuid: {self.identifier}\n")
@@ -142,6 +165,7 @@ class BaseDocument(ABC):
                 properties_file.write(f"Dezoomify-rs path: {dezoomify_path}\n")
                 properties_file.write(f"Dezoomify-rs args: {' '.join(dezoomify_args or [])}\n")
                 properties_file.write(f"Allow insecure: {str(allow_insecure).lower()}\n")
+                properties_file.write(f"Images subfolder: {self.images_subfolder or ''}\n")
                 properties_file.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             logger.debug("Created properties file at %s", self.properties_path)
         # pylint: disable-next=broad-exception-caught

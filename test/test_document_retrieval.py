@@ -274,7 +274,17 @@ def test_process_library_documents_should_pass_additional_args(mock_library, moc
 
 @pytest.mark.parametrize(
     "option",
-    ["config", "documents_file", "verbose", "processes", "pages", "output", "dezoomify_path", "dezoomify_args"],
+    [
+        "config",
+        "documents_file",
+        "verbose",
+        "processes",
+        "pages",
+        "output",
+        "dezoomify_path",
+        "dezoomify_args",
+        "images_subfolder",
+    ],
 )
 def test_build_parser_should_default_config_aware_options_to_none(option):
     """Test that options also settable in the config file default to None (not given)."""
@@ -296,6 +306,7 @@ def test_build_additional_args_should_include_dezoomify_path_and_args():
         "dezoomify-path": "/dz",
         "dezoomify-args": ["--a"],
         "allow-insecure": False,
+        "images-subfolder": None,
     }
 
 
@@ -398,6 +409,7 @@ def test_main_should_pass_library_specific_dezoomify_args_to_processing(main_env
         "dezoomify-path": "dezoomify-rs",
         "dezoomify-args": ["--l"],
         "allow-insecure": False,
+        "images-subfolder": None,
     }
 
 
@@ -579,3 +591,24 @@ def test_cli_should_exit_one_when_document_preprocessing_fails(run_cli):
     assert result.returncode == 1
     assert "https://example.com/not-supported" in result.stderr
     assert "All documents processed successfully" not in result.stderr
+
+
+@pytest.mark.parametrize("library_name, expected", [("Lib", "lib_images"), ("Other", "images")])
+def test_build_additional_args_should_include_images_subfolder_for_library(library_name, expected):
+    settings = Settings(images_subfolder="images", library_images_subfolder={"Lib": "lib_images"})
+
+    assert build_additional_args(settings, library_name)["images-subfolder"] == expected
+
+
+def test_build_parser_should_parse_images_subfolder():
+    assert build_parser().parse_args(["--images-subfolder", "images"]).images_subfolder == "images"
+
+
+@pytest.mark.parametrize("value", ["", "..", ".", "a/b", "a\\b", "/abs"])
+def test_build_parser_should_reject_invalid_images_subfolder(value, capsys):
+    parser = build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--images-subfolder", value])
+
+    assert "--images-subfolder" in capsys.readouterr().err

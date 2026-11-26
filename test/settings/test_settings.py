@@ -12,6 +12,7 @@ from src.settings.settings import (
     is_positive_int,
     load_config,
     resolve_settings,
+    validate_images_subfolder_arg,
 )
 from .fixtures import LIBRARY_NAME, known_libraries, write_config, cli_args
 
@@ -444,3 +445,85 @@ def test_resolve_settings_should_not_warn_about_contradiction_when_insecure(cli_
         resolve_settings(cli_args(allow_insecure=True, dezoomify_args=["--accept-invalid-certs"]))
 
     assert "passed unchanged" not in caplog.text
+
+
+def test_validate_images_subfolder_arg_should_return_plain_name():
+    assert validate_images_subfolder_arg("images") == "images"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "  ",
+        ".",
+        "..",
+        "a/b",
+        "a\\b",
+        "/abs",
+        None,
+        5,
+        "CON",
+        "nul",
+        "a:b",
+        "a?b",
+        "a*b",
+        "a<b",
+        "name.",
+        "name ",
+        "a|b",
+        "properties.txt",
+        "Properties.TXT",
+    ],
+)
+def test_validate_images_subfolder_arg_should_raise_for_invalid_name(value):
+    with pytest.raises(ArgumentTypeError):
+        validate_images_subfolder_arg(value)
+
+
+def test_load_config_should_read_images_subfolder_at_top_level_and_in_library(write_config, known_libraries):
+    config_path = write_config(f'images_subfolder = "img"\n[library.{LIBRARY_NAME}]\nimages_subfolder = "lib_img"\n')
+
+    config = load_config(config_path, known_libraries)
+
+    assert config["images_subfolder"] == "img"
+    assert config["library"][LIBRARY_NAME]["images_subfolder"] == "lib_img"
+
+
+@pytest.mark.parametrize(
+    "value",
+    ['""', '".."', '"a/b"', '"/abs"', "1", "[1]", '"CON"', '"a:b"', '"name."', '"properties.txt"', '"PROPERTIES.txt"'],
+)
+@pytest.mark.parametrize(
+    "template", ["images_subfolder = {value}\n", f"[library.{LIBRARY_NAME}]\nimages_subfolder = {{value}}\n"]
+)
+def test_load_config_should_reject_invalid_images_subfolder(write_config, known_libraries, template, value):
+    config_path = write_config(template.format(value=value))
+
+    with pytest.raises(ConfigError, match="images_subfolder"):
+        load_config(config_path, known_libraries)
+
+
+def test_resolve_settings_should_default_images_subfolder_to_none(cli_args):
+    settings = resolve_settings(cli_args())
+
+    assert settings.images_subfolder is None
+    assert settings.images_subfolder_for(LIBRARY_NAME) is None
+
+
+def test_resolve_settings_should_prefer_library_images_subfolder_over_top_level(cli_args):
+    config = {"images_subfolder": "top", "library": {LIBRARY_NAME: {"images_subfolder": "lib"}}}
+
+    settings = resolve_settings(cli_args(), config)
+
+    assert settings.images_subfolder_for(LIBRARY_NAME) == "lib"
+    assert settings.images_subfolder_for("Other") == "top"
+
+
+def test_resolve_settings_should_let_cli_images_subfolder_override_library_tables(cli_args):
+    config = {"images_subfolder": "top", "library": {LIBRARY_NAME: {"images_subfolder": "lib"}}}
+
+    settings = resolve_settings(cli_args(images_subfolder="cli"), config)
+
+    assert settings.images_subfolder == "cli"
+    assert settings.images_subfolder_for(LIBRARY_NAME) == "cli"

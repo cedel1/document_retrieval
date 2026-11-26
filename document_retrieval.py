@@ -15,10 +15,19 @@ from pathlib import Path
 from typing import Dict, Optional, Sequence
 
 from pathvalidate.argparse import validate_filepath_arg
+
 from src.helper_services.base_getter import CertificateValidationError
 from src.library_models.base.base_library import BaseLibrary, PageDownloadResult
 from src.library_models.factories.library_factory import LibraryFactory
-from src.settings.settings import ConfigError, Settings, find_config, is_positive_int, load_config, resolve_settings
+from src.settings.settings import (
+    ConfigError,
+    Settings,
+    find_config,
+    is_positive_int,
+    load_config,
+    resolve_settings,
+    validate_images_subfolder_arg,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +267,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--output", type=validate_filepath_arg, help="Base output directory for downloaded images (default: output)"
     )
     parser.add_argument(
+        "--images-subfolder",
+        dest="images_subfolder",
+        type=validate_images_subfolder_arg,
+        help="Name of a subfolder of each document folder that receives the page images (default: images are stored "
+        "directly in the document folder); overrides the config file, including library tables",
+    )
+    parser.add_argument(
         "--dezoomify-path",
         dest="dezoomify_path",
         help="Path to dezoomify-rs executable (default: dezoomify-rs)",
@@ -280,13 +296,14 @@ def build_additional_args(settings: Settings, library_name: str) -> dict:
         library_name: ``library_name`` of the library being processed; selects library-specific dezoomify args.
 
     Returns:
-        A dictionary with the ``dezoomify-path``, ``dezoomify-args`` and ``allow-insecure`` entries (always
-        present) and, when page UUIDs were set, a ``--pages`` entry.
+        A dictionary with the ``dezoomify-path``, ``dezoomify-args`` and ``allow-insecure`` and ``images-subfolder``
+        entries (always present) and, when page UUIDs were set, a ``--pages`` entry.
     """
     additional_args: dict = {
         "dezoomify-path": settings.dezoomify_path,
         "dezoomify-args": settings.dezoomify_args_for(library_name),
         "allow-insecure": settings.allow_insecure_for(library_name),
+        "images-subfolder": settings.images_subfolder_for(library_name),
     }
     if settings.pages:
         additional_args["--pages"] = settings.pages
