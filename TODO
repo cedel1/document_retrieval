@@ -2,3 +2,5 @@
 - save more info about a document - what type it is (book, periodical etc.), is it a part of a collection (of books or another issue of a periodical)
 - possibly add browser selection capability (when using Selenium)
 - possibly add progressbar?
+- investigate separating folder creation (and its checks) from properties file creation (separation of concerns)
+- investigate architectural changes - some methods have too many arguments which suggests splitting might be needed

@@ -23,7 +23,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
+from pathvalidate import ValidationError, validate_filename
 from pathvalidate.argparse import validate_filepath_arg
+
+from src.library_models.base.base_document import PROPERTIES_FILE_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +36,7 @@ DEFAULT_DEZOOMIFY_PATH = "dezoomify-rs"
 
 LIBRARY_TABLE_KEY = "library"
 ACCEPT_INVALID_CERTS_ARG = "--accept-invalid-certs"
-LIBRARY_KEYS = frozenset({"dezoomify_args", "allow_insecure"})
+LIBRARY_KEYS = frozenset({"dezoomify_args", "allow_insecure", "images_subfolder"})
 
 
 class ConfigError(ValueError):
@@ -69,6 +72,48 @@ def _validate_str(key: str, value: Any) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ConfigError(f"'{key}' must be a non-empty string")
     return value
+
+
+def validate_images_subfolder_arg(value: Any) -> str:
+    """Validate an images subfolder name (usable as an argparse ``type``).
+
+    Args:
+        value: Candidate subfolder name.
+
+    Returns:
+        The unchanged name.
+
+    Raises:
+        argparse.ArgumentTypeError: If the value is not a single folder name (empty, ``.``, ``..``, absolute,
+            containing a path separator, or invalid as a file name on any platform, e.g. reserved names such as
+            ``CON``, trailing dots or spaces, or characters like ``:`` and ``?``), or if it equals the name of the
+            properties file (compared case-insensitively).
+    """
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or value in (".", "..")
+        or any(separator in value for separator in ("/", "\\"))
+        or Path(value).name != value
+    ):
+        raise argparse.ArgumentTypeError("Value must be a single folder name without path separators")
+    if value.casefold() == PROPERTIES_FILE_NAME.casefold():
+        raise argparse.ArgumentTypeError(f"Value '{value}' is reserved for the properties file")
+    try:
+        validate_filename(value, platform="universal")
+    except ValidationError as e:
+        raise argparse.ArgumentTypeError(
+            f"Value is not a valid folder name on all platforms: {e.reason.description}"
+        ) from e
+    return value
+
+
+def _validate_images_subfolder(key: str, value: Any) -> str:
+    """Validate an images subfolder name using the same rules as the ``--images-subfolder`` option."""
+    try:
+        return validate_images_subfolder_arg(value)
+    except argparse.ArgumentTypeError as e:
+        raise ConfigError(f"'{key}' must be a valid single folder name: {e}") from e
 
 
 def _validate_path(key: str, value: Any, base_dir: Path) -> str:
@@ -144,12 +189,14 @@ def _top_level_validators(base_dir: Path) -> dict[str, Callable[[str, Any], Any]
         "dezoomify_path": partial(_validate_path_or_bare_name, base_dir=base_dir),
         "dezoomify_args": _validate_str_list,
         "allow_insecure": _validate_bool,
+        "images_subfolder": _validate_images_subfolder,
     }
 
 
 _LIBRARY_VALIDATORS: dict[str, Callable[[str, Any], Any]] = {
     "dezoomify_args": _validate_str_list,
     "allow_insecure": _validate_bool,
+    "images_subfolder": _validate_images_subfolder,
 }
 
 
@@ -250,6 +297,9 @@ class Settings:  # pylint: disable=too-many-instance-attributes
         library_dezoomify_args: Per-library dezoomify-rs arguments keyed by ``library_name``.
         allow_insecure: Whether certificate validation is disabled (``False`` means certificates are validated).
         library_allow_insecure: Per-library ``allow_insecure`` values keyed by ``library_name``.
+        images_subfolder: Name of the subfolder of each document folder receiving the page images (``None`` means
+            the images are stored directly in the document folder).
+        library_images_subfolder: Per-library ``images_subfolder`` values keyed by ``library_name``.
     """
 
     documents_file: Optional[str] = None
@@ -262,6 +312,8 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     library_dezoomify_args: dict[str, list[str]] = field(default_factory=dict)
     allow_insecure: bool = False
     library_allow_insecure: dict[str, bool] = field(default_factory=dict)
+    images_subfolder: Optional[str] = None
+    library_images_subfolder: dict[str, str] = field(default_factory=dict)
 
     def dezoomify_args_for(self, library_name: str) -> list[str]:
         """Return the dezoomify-rs arguments for a library.
@@ -284,6 +336,17 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             The library-specific value when configured, otherwise the global value.
         """
         return self.library_allow_insecure.get(library_name, self.allow_insecure)
+
+    def images_subfolder_for(self, library_name: str) -> Optional[str]:
+        """Return the images subfolder name for a library.
+
+        Args:
+            library_name: ``library_name`` of the library.
+
+        Returns:
+            The library-specific value when configured, otherwise the global value (``None`` when not set).
+        """
+        return self.library_images_subfolder.get(library_name, self.images_subfolder)
 
 
 def resolve_settings(args: argparse.Namespace, config: Optional[dict[str, Any]] = None) -> Settings:
@@ -313,6 +376,9 @@ def resolve_settings(args: argparse.Namespace, config: Optional[dict[str, Any]] 
     cli_allow_insecure = getattr(args, "allow_insecure", None)
     library_insecure = {} if cli_allow_insecure is not None else _library_allow_insecure(config)
 
+    cli_images_subfolder = getattr(args, "images_subfolder", None)
+    library_subfolder = {} if cli_images_subfolder is not None else _library_images_subfolder(config)
+
     settings = Settings(
         documents_file=pick("documents_file"),
         output=pick("output", DEFAULT_OUTPUT),
@@ -324,6 +390,8 @@ def resolve_settings(args: argparse.Namespace, config: Optional[dict[str, Any]] 
         library_dezoomify_args=library_args,
         allow_insecure=pick("allow_insecure", False),
         library_allow_insecure=library_insecure,
+        images_subfolder=pick("images_subfolder"),
+        library_images_subfolder=library_subfolder,
     )
     _warn_about_settings(settings, config)
     return settings
@@ -344,6 +412,15 @@ def _library_allow_insecure(config: dict[str, Any]) -> dict[str, bool]:
         name: table["allow_insecure"]
         for name, table in config.get(LIBRARY_TABLE_KEY, {}).items()
         if "allow_insecure" in table
+    }
+
+
+def _library_images_subfolder(config: dict[str, Any]) -> dict[str, str]:
+    """Extract per-library ``images_subfolder`` values from a validated config."""
+    return {
+        name: table["images_subfolder"]
+        for name, table in config.get(LIBRARY_TABLE_KEY, {}).items()
+        if "images_subfolder" in table
     }
 
 

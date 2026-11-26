@@ -32,6 +32,7 @@ class BaseDocumentPage(ABC):
         self.page_detail_url = page_detail_url
         self.index = index
         self.output_dir = Path(output_dir)
+        self.images_subfolder: Optional[str] = None
 
     @property
     def output_base(self) -> Path:
@@ -41,10 +42,11 @@ class BaseDocumentPage(ABC):
             None: This property does not accept arguments.
 
         Returns:
-            Path: The page-specific base output path.
+            Path: The page-specific base output path; inside ``images_subfolder`` when it is set.
         """
         filename = f"page_{self.index:03d}_{self.identifier}"
-        return self.output_dir / filename[:64]
+        images_dir = self.output_dir / self.images_subfolder if self.images_subfolder else self.output_dir
+        return images_dir / filename[:64]
 
     def get_page_download_url(self, page_id: str) -> str:
         """Return the download URL for a given page UUID.

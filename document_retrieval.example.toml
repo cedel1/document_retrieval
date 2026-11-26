@@ -25,6 +25,10 @@ output = "output"
 # dezoomify-rs. --allow-insecure / --no-allow-insecure on the command line override this, including library tables.
 # allow_insecure = true
 
+# Download page images into this subfolder of each document folder (a single folder name; properties.txt stays in the
+# document folder). Default: not set, images go directly into the document folder. --images-subfolder overrides this.
+# images_subfolder = "images"
+
 # dezoomify-rs executable (default: "dezoomify-rs", looked up on PATH) and extra arguments for it.
 # A path with a directory part, e.g. "./bin/dezoomify-rs", is relative to this file's directory.
 # dezoomify_path = "/usr/local/bin/dezoomify-rs"
@@ -34,3 +38,4 @@ output = "output"
 # [library.Library_DSMO]
 # dezoomify_args = ["--max-width", "4000"]
 # allow_insecure = true
+# images_subfolder = "images"
